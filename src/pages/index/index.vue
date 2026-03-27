@@ -5,28 +5,36 @@
 
     <!-- 顶部品牌区 -->
     <view class="brand">
-      <view class="brand-row">
-        <view class="brand-logo">🔍</view>
-        <text class="brand-name">人话翻译机</text>
-      </view>
-      <text class="brand-slogan">粘贴话术，一键看穿真相</text>
+      <text class="brand-title">黑话“专家”</text>
     </view>
 
     <!-- 场景选择栏 -->
-    <scroll-view class="scene-bar" scroll-x enable-flex :show-scrollbar="false">
-      <view
-        v-for="(scene, idx) in scenes"
-        :key="scene.id"
-        class="scene-pill"
-        :class="{
-          'scene-pill--active': currentScene === idx,
-          'scene-pill--green': currentScene === idx && scene.id === 'reverse'
-        }"
-        @tap="currentScene = idx"
+    <view class="scene-bar-wrap">
+      <scroll-view
+        class="scene-bar"
+        scroll-x
+        :show-scrollbar="false"
+        :scroll-into-view="activeScenePillId"
+        scroll-with-animation
       >
-        {{ scene.icon }} {{ scene.label }}
-      </view>
-    </scroll-view>
+        <view class="scene-bar-track">
+          <view
+            v-for="(scene, idx) in scenes"
+            :id="`scene-pill-${scene.id}`"
+            :key="scene.id"
+            class="scene-pill"
+            :class="{
+              'scene-pill--active': currentScene === idx,
+              'scene-pill--green': currentScene === idx && scene.id === 'reverse'
+            }"
+            @tap="currentScene = idx"
+          >
+            <text class="scene-pill__icon">{{ scene.icon }}</text>
+            <text class="scene-pill__label">{{ scene.label }}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
 
     <!-- 文本输入区 -->
     <view class="input-card" :class="{ 'input-card--focus': isFocused }">
@@ -69,31 +77,6 @@
 
     <!-- 翻译结果区 -->
     <view v-if="result && !isLoading" class="result" :class="{ 'result--show': showResult }">
-      <!-- 妆感浓度仪表 -->
-      <view class="meter-card">
-        <view class="meter-left">
-          <text class="meter-label">
-            {{ currentSceneConfig.id === 'reverse' ? '💄 上妆浓度' : '💄 妆感浓度' }}
-          </text>
-          <view class="meter-track">
-            <view class="meter-fill" :style="{ width: animatedScore + '%' }" />
-          </view>
-          <view class="meter-scale">
-            <text class="meter-scale-item">素颜</text>
-            <text class="meter-scale-item">淡妆</text>
-            <text class="meter-scale-item">浓妆</text>
-            <text class="meter-scale-item">整容</text>
-          </view>
-        </view>
-        <view class="meter-right">
-          <view class="meter-score-row">
-            <text class="meter-score">{{ result.score }}</text>
-            <text class="meter-percent">%</text>
-          </view>
-          <text class="meter-verdict">{{ result.verdict }}</text>
-        </view>
-      </view>
-
       <!-- 翻译结果卡片 -->
       <view class="result-card">
         <!-- 原文 -->
@@ -104,7 +87,9 @@
               {{ currentSceneConfig.id === 'reverse' ? '原文 · 大白话' : '原文 · 话术版' }}
             </text>
           </view>
-          <text class="result-original">{{ inputText }}</text>
+          <view class="result-original-box">
+            <text class="result-original">{{ inputText }}</text>
+          </view>
         </view>
 
         <!-- 人话翻译 -->
@@ -112,16 +97,21 @@
           <view class="result-label">
             <view class="dot dot--green" />
             <text class="result-label-text result-label-text--green">
-              {{ currentSceneConfig.id === 'reverse' ? '上妆 · 高大上版' : '人话 · 真实含义' }}
+              {{ currentSceneConfig.id === 'reverse' ? '上妆 · 拆开看' : '真实意思 · 拆开看' }}
             </text>
           </view>
-          <text class="result-human">{{ result.humanText }}</text>
+          <view class="truth-list">
+            <view v-for="(item, idx) in resultSummaryPoints" :key="idx" class="truth-item">
+              <view class="truth-index">{{ idx + 1 }}</view>
+              <text class="truth-text">{{ item }}</text>
+            </view>
+          </view>
         </view>
 
         <!-- 逐句拆解 -->
-        <view class="result-section">
+        <view v-if="result.breakdown.length" class="result-section">
           <view class="result-label">
-            <text class="result-label-text result-label-text--gray">🔬 逐句拆解</text>
+            <text class="result-label-text result-label-text--gray">🔬 关键词拆解</text>
           </view>
           <view
             v-for="(item, idx) in result.breakdown"
@@ -147,11 +137,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
-import { onShareAppMessage } from '@dcloudio/uni-app'
 import { scenes, type TranslationResult } from '@/config/scenes'
 import { requestTranslation } from '@/utils/cloudbase'
 import { normalizeTranslationResult } from '@/utils/translate'
+import { onShareAppMessage } from '@dcloudio/uni-app'
+import { computed, nextTick, ref } from 'vue'
 
 // --- 状态 ---
 const currentScene = ref(0)
@@ -160,11 +150,53 @@ const isFocused = ref(false)
 const isLoading = ref(false)
 const result = ref<TranslationResult | null>(null)
 const showResult = ref(false)
-const animatedScore = ref(0)
 
 const currentSceneConfig = computed(() => scenes[currentScene.value])
+const activeScenePillId = computed(() => `scene-pill-${currentSceneConfig.value.id}`)
 const hasInputText = computed(() => inputText.value.trim().length > 0)
 const loadingLayers = computed(() => Math.max(3, Math.floor(inputText.value.length / 10)))
+const resultSummaryPoints = computed(() => {
+  if (!result.value) return []
+
+  const directPoints = splitHumanTextIntoPoints(result.value.humanText)
+  if (directPoints.length > 1) return directPoints
+
+  const breakdownPoints = result.value.breakdown
+    .map((item) => item.to.trim())
+    .filter(Boolean)
+
+  return breakdownPoints.length ? breakdownPoints : directPoints
+})
+
+function splitHumanTextIntoPoints(text: string) {
+  const normalized = text
+    .replace(/\r/g, '\n')
+    .replace(/[\t ]+/g, ' ')
+    .trim()
+
+  if (!normalized) return []
+
+  const numberedLines = normalized
+    .split(/\n+/)
+    .map((item) => item.replace(/^\s*\d+\s*[.:：、)\-]\s*/, '').trim())
+    .filter(Boolean)
+
+  if (numberedLines.length > 1) {
+    return numberedLines.slice(0, 6)
+  }
+
+  const sentenceParts = normalized
+    .replace(/[；;。！？?!]/g, '，')
+    .split(/[，,]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  if (sentenceParts.length > 1) {
+    return sentenceParts.slice(0, 6)
+  }
+
+  return [normalized]
+}
 
 function getReadableErrorMessage(error: any) {
   const message = `${error?.errMsg || error?.message || ''}`
@@ -222,7 +254,6 @@ async function handleTranslate() {
   isLoading.value = true
   result.value = null
   showResult.value = false
-  animatedScore.value = 0
 
   try {
     console.log('[translate] start', {
@@ -240,18 +271,11 @@ async function handleTranslate() {
     if (data && data.humanText) {
       result.value = {
         humanText: data.humanText,
-        score: Math.min(100, Math.max(0, Number(data.score) || 50)),
-        verdict: data.verdict || '未知浓度',
         breakdown: Array.isArray(data.breakdown) ? data.breakdown : []
       }
 
       await nextTick()
       showResult.value = true
-
-      // 进度条动画
-      setTimeout(() => {
-        animatedScore.value = result.value!.score
-      }, 100)
     } else {
       uni.showToast({ title: 'AI 返回格式不对，请重试一次', icon: 'none', duration: 2500 })
     }
@@ -266,7 +290,10 @@ async function handleTranslate() {
 // --- 复制 ---
 function handleCopy() {
   if (!result.value) return
-  const text = `【人话翻译机】\n原文：${inputText.value}\n人话：${result.value.humanText}\n妆感浓度：${result.value.score}%`
+  const summary = resultSummaryPoints.value.length
+    ? resultSummaryPoints.value.map((item, idx) => `${idx + 1}. ${item}`).join('\n')
+    : result.value.humanText
+  const text = `【黑话“专家”】\n原文：${inputText.value}\n真实意思：\n${summary}`
   uni.setClipboardData({
     data: text,
     success: () => uni.showToast({ title: '已复制', icon: 'success' })
@@ -283,15 +310,13 @@ function handleReset() {
   inputText.value = ''
   result.value = null
   showResult.value = false
-  animatedScore.value = 0
   uni.pageScrollTo({ scrollTop: 0, duration: 300 })
 }
 
 // --- 小程序分享 ---
 onShareAppMessage(() => {
-  const score = result.value?.score ?? 0
   return {
-    title: `这段话的妆感浓度居然有${score}%！`,
+    title: '黑话“专家”帮你翻译这段话',
     path: '/pages/index/index'
   }
 })
@@ -299,22 +324,24 @@ onShareAppMessage(() => {
 
 <style lang="scss">
 // 设计 token
-$bg: #0a0a0f;
-$card: #13131a;
-$border: #2a2a3a;
-$text: #e8e8f0;
-$text-secondary: #6a6a80;
-$text-weak: #4a4a5e;
-$red: #ff4d4d;
-$orange: #ff9100;
-$green: #00e676;
+$bg: #fff7f1;
+$card: rgba(255, 255, 255, 0.9);
+$border: #f1d8c8;
+$text: #3c241c;
+$text-secondary: #7b6257;
+$text-weak: #b79d90;
+$red: #ff6b4a;
+$orange: #ffb36b;
+$green: #18b57c;
 $radius-lg: 28rpx;
 $radius-sm: 20rpx;
 $radius-pill: 40rpx;
 
 .page {
   min-height: 100vh;
-  background: $bg;
+  background:
+    radial-gradient(circle at top left, rgba($red, 0.16) 0, transparent 28%),
+    linear-gradient(180deg, #fffaf6 0%, $bg 42%, #fff2e8 100%);
   padding: 0 0 80rpx;
   position: relative;
   overflow: hidden;
@@ -328,7 +355,7 @@ $radius-pill: 40rpx;
   width: 260rpx;
   height: 260rpx;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba($red, 0.25) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba($red, 0.18) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -336,63 +363,63 @@ $radius-pill: 40rpx;
 .brand {
   padding: 100rpx 40rpx 0;
 }
-.brand-row {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-.brand-logo {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 16rpx;
-  background: linear-gradient(135deg, $red, $orange);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36rpx;
-}
-.brand-name {
+.brand-title {
   font-size: 40rpx;
   font-weight: 900;
   background: linear-gradient(90deg, $red, $orange);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-.brand-slogan {
-  display: block;
-  font-size: 24rpx;
-  color: $text-secondary;
-  margin-top: 8rpx;
-  padding-left: 88rpx;
-}
 
 // --- 场景选择 ---
-.scene-bar {
-  white-space: nowrap;
+.scene-bar-wrap {
   margin-top: 36rpx;
   padding: 0 40rpx;
 }
-.scene-pill {
+.scene-bar {
+  width: 100%;
+}
+.scene-bar-track {
   display: inline-flex;
   align-items: center;
-  padding: 16rpx 28rpx;
-  margin-right: 16rpx;
+  gap: 16rpx;
+  padding: 10rpx 40rpx 10rpx 0;
+}
+.scene-pill {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 18rpx 28rpx;
   border-radius: $radius-pill;
   background: $card;
   border: 2rpx solid $border;
   font-size: 26rpx;
   color: $text-secondary;
+  box-shadow: 0 12rpx 28rpx rgba(133, 88, 58, 0.06);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .scene-pill--active {
-  background: rgba($red, 0.12);
+  background: rgba($red, 0.1);
   border-color: $red;
   color: $red;
   font-weight: 600;
+  transform: translateY(-2rpx);
+  box-shadow: 0 16rpx 32rpx rgba($red, 0.14);
 }
 .scene-pill--green {
-  background: rgba($green, 0.10);
+  background: rgba($green, 0.1);
   border-color: $green;
   color: $green;
+  box-shadow: 0 16rpx 32rpx rgba($green, 0.14);
+}
+.scene-pill__icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
+.scene-pill__label {
+  line-height: 1.2;
 }
 
 // --- 输入区 ---
@@ -403,10 +430,11 @@ $radius-pill: 40rpx;
   border-radius: $radius-lg;
   padding: 28rpx 32rpx;
   transition: border-color 0.3s, box-shadow 0.3s;
+  box-shadow: 0 20rpx 44rpx rgba(133, 88, 58, 0.08);
 }
 .input-card--focus {
   border-color: $red;
-  box-shadow: 0 0 6rpx rgba($red, 0.3);
+  box-shadow: 0 0 0 6rpx rgba($red, 0.08), 0 20rpx 44rpx rgba(133, 88, 58, 0.1);
 }
 .input-textarea {
   width: 100%;
@@ -442,6 +470,9 @@ $radius-pill: 40rpx;
   font-size: 24rpx;
   color: $text-secondary;
   padding: 10rpx 20rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 2rpx solid $border;
+  border-radius: $radius-pill;
 }
 .btn-translate {
   font-size: 26rpx;
@@ -450,7 +481,7 @@ $radius-pill: 40rpx;
   background: linear-gradient(90deg, $red, $orange);
   padding: 16rpx 32rpx;
   border-radius: $radius-pill;
-  box-shadow: 0 4rpx 16rpx rgba($red, 0.35);
+  box-shadow: 0 10rpx 24rpx rgba($red, 0.24);
 }
 .btn-translate--disabled {
   opacity: 0.4;
@@ -495,81 +526,13 @@ $radius-pill: 40rpx;
   transform: translateY(0);
 }
 
-// 妆感浓度仪表
-.meter-card {
-  display: flex;
-  align-items: center;
-  background: $card;
-  border: 2rpx solid $border;
-  border-radius: $radius-lg;
-  padding: 32rpx 36rpx;
-  margin-bottom: 24rpx;
-}
-.meter-left {
-  flex: 1;
-  margin-right: 32rpx;
-}
-.meter-label {
-  font-size: 22rpx;
-  color: $text-secondary;
-}
-.meter-track {
-  height: 12rpx;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 6rpx;
-  margin-top: 16rpx;
-  overflow: hidden;
-}
-.meter-fill {
-  height: 100%;
-  background: linear-gradient(90deg, $red, $orange);
-  border-radius: 6rpx;
-  box-shadow: 0 0 8rpx rgba($red, 0.5);
-  transition: width 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-.meter-scale {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 10rpx;
-}
-.meter-scale-item {
-  font-size: 18rpx;
-  color: $text-weak;
-}
-.meter-right {
-  text-align: center;
-}
-.meter-score-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-.meter-score {
-  font-size: 72rpx;
-  font-weight: 900;
-  background: linear-gradient(180deg, $red, $orange);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  line-height: 1;
-}
-.meter-percent {
-  font-size: 28rpx;
-  color: $text-secondary;
-  margin-bottom: 8rpx;
-}
-.meter-verdict {
-  font-size: 22rpx;
-  color: $red;
-  font-weight: 600;
-  margin-top: 8rpx;
-}
-
 // 翻译结果卡片
 .result-card {
   background: $card;
   border: 2rpx solid $border;
   border-radius: $radius-lg;
   overflow: hidden;
+  box-shadow: 0 18rpx 40rpx rgba(133, 88, 58, 0.08);
 }
 .result-section {
   padding: 32rpx 36rpx;
@@ -579,7 +542,7 @@ $radius-pill: 40rpx;
   }
 }
 .result-section--green-bg {
-  background: rgba($green, 0.03);
+  background: rgba($green, 0.06);
 }
 .result-label {
   display: flex;
@@ -610,18 +573,58 @@ $radius-pill: 40rpx;
 .result-label-text--gray {
   color: $text-secondary;
 }
+.result-original-box {
+  min-height: 160rpx;
+  max-height: 360rpx;
+  overflow-y: auto;
+  padding: 24rpx 26rpx;
+  background: rgba($red, 0.04);
+  border: 2rpx solid rgba($red, 0.1);
+  border-radius: 24rpx;
+  box-sizing: border-box;
+}
 .result-original {
+  display: block;
   font-size: 26rpx;
   color: $text-secondary;
   text-decoration: line-through;
   text-decoration-color: rgba($red, 0.25);
   line-height: 1.7;
+  word-break: break-all;
 }
-.result-human {
-  font-size: 32rpx;
-  font-weight: 700;
+.truth-list {
+  display: grid;
+  gap: 18rpx;
+}
+.truth-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
+  padding: 22rpx 24rpx;
+  background: rgba(255, 255, 255, 0.74);
+  border: 2rpx solid rgba($green, 0.16);
+  border-radius: 24rpx;
+  box-shadow: 0 14rpx 30rpx rgba(24, 181, 124, 0.08);
+}
+.truth-index {
+  width: 56rpx;
+  height: 56rpx;
+  flex-shrink: 0;
+  border-radius: 18rpx;
+  background: linear-gradient(180deg, rgba($green, 0.18), rgba($green, 0.06));
+  color: $green;
+  font-size: 26rpx;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.truth-text {
+  flex: 1;
+  font-size: 30rpx;
+  line-height: 1.65;
   color: $text;
-  line-height: 1.7;
+  font-weight: 700;
 }
 
 // 逐句拆解
@@ -631,7 +634,7 @@ $radius-pill: 40rpx;
   padding: 16rpx 0;
 }
 .breakdown-row--border {
-  border-top: 2rpx solid rgba(255, 255, 255, 0.03);
+  border-top: 2rpx solid rgba(60, 36, 28, 0.06);
 }
 .breakdown-from {
   font-size: 26rpx;
@@ -665,7 +668,7 @@ $radius-pill: 40rpx;
   text-align: center;
   font-size: 26rpx;
   color: $text-secondary;
-  background: #1a1a24;
+  background: rgba(255, 255, 255, 0.76);
   border: 2rpx solid $border;
   border-radius: $radius-sm;
   padding: 22rpx 0;
@@ -674,6 +677,6 @@ $radius-pill: 40rpx;
   color: #fff;
   background: linear-gradient(90deg, $red, $orange);
   border: none;
-  box-shadow: 0 4rpx 16rpx rgba($red, 0.35);
+  box-shadow: 0 10rpx 24rpx rgba($red, 0.24);
 }
 </style>

@@ -75,24 +75,6 @@ function pickString(record: AnyRecord, keys: string[]): string | null {
   return null
 }
 
-function normalizeScore(value: unknown): number {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return Math.min(100, Math.max(0, Math.round(value)))
-  }
-
-  if (typeof value === 'string') {
-    const matched = value.match(/-?\d+(?:\.\d+)?/)
-    if (matched) {
-      const num = Number(matched[0])
-      if (Number.isFinite(num)) {
-        return Math.min(100, Math.max(0, Math.round(num)))
-      }
-    }
-  }
-
-  return 50
-}
-
 function pushBreakdown(list: TranslationBreakdown[], from: unknown, to: unknown) {
   const toText = coerceString(to)
   if (!toText) return
@@ -161,8 +143,6 @@ function normalizeFromRecord(record: AnyRecord): TranslationResult | null {
 
   return {
     humanText,
-    score: normalizeScore(record.score ?? record.makeupScore ?? record.intensity ?? record.levelScore),
-    verdict: pickString(record, ['verdict', 'label', 'diagnosis', 'level', 'comment']) ?? '未知浓度',
     breakdown: normalizeBreakdown(record.breakdown ?? record.explain ?? record.explanation ?? record.details)
   }
 }
@@ -192,8 +172,6 @@ function normalizeTranslationResultInternal(payload: unknown, depth: number): Tr
     if (!cleaned) return null
     return {
       humanText: cleaned,
-      score: 50,
-      verdict: '未知浓度',
       breakdown: []
     }
   }

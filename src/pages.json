@@ -5,16 +5,16 @@
 			"style": {
 				"navigationStyle": "custom",
 				"enablePullDownRefresh": false,
-				"backgroundColor": "#0a0a0f",
-				"backgroundColorTop": "#0a0a0f",
-				"backgroundColorBottom": "#0a0a0f"
+				"backgroundColor": "#fff7f1",
+				"backgroundColorTop": "#fffaf6",
+				"backgroundColorBottom": "#fff2e8"
 			}
 		}
 	],
 	"globalStyle": {
-		"navigationBarTextStyle": "white",
+		"navigationBarTextStyle": "black",
 		"navigationBarTitleText": "人话翻译机",
-		"navigationBarBackgroundColor": "#0a0a0f",
-		"backgroundColor": "#0a0a0f"
+		"navigationBarBackgroundColor": "#fff7f1",
+		"backgroundColor": "#fff7f1"
 	}
 }

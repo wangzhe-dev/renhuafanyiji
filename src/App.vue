@@ -10,8 +10,8 @@ export default {
 
 <style lang="scss">
 page {
-  background-color: #0a0a0f;
-  color: #e8e8f0;
+  background-color: #fff7f1;
+  color: #3c241c;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 </style>
