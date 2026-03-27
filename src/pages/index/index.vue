@@ -246,6 +246,7 @@ function handleSceneChange(idx: number) {
   if (currentScene.value === idx) return
 
   currentScene.value = idx
+  inputText.value = ''
   requestToken.value += 1
   isLoading.value = false
   clearResultState()
