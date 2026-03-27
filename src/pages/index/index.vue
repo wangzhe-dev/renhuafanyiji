@@ -23,11 +23,8 @@
             :id="`scene-pill-${scene.id}`"
             :key="scene.id"
             class="scene-pill"
-            :class="{
-              'scene-pill--active': currentScene === idx,
-              'scene-pill--green': currentScene === idx && scene.id === 'reverse'
-            }"
-            @tap="currentScene = idx"
+            :class="{ 'scene-pill--active': currentScene === idx }"
+            @tap="handleSceneChange(idx)"
           >
             <text class="scene-pill__icon">{{ scene.icon }}</text>
             <text class="scene-pill__label">{{ scene.label }}</text>
@@ -52,16 +49,12 @@
       <view class="input-actions">
         <text class="input-count">{{ inputText.length }}/500</text>
         <view class="input-btns">
-          <view class="btn-paste" @tap="handlePaste">📋 粘贴</view>
           <view
             class="btn-translate"
-            :class="{
-              'btn-translate--disabled': !hasInputText || isLoading,
-              'btn-translate--green': currentSceneConfig.id === 'reverse'
-            }"
+            :class="{ 'btn-translate--disabled': !hasInputText || isLoading }"
             @tap="handleTranslate"
           >
-            {{ currentSceneConfig.id === 'reverse' ? '✨ 上妆' : '🔍 翻译人话' }}
+            🔍 翻译人话
           </view>
         </view>
       </view>
@@ -69,67 +62,79 @@
 
     <!-- 加载态 -->
     <view v-if="isLoading" class="loading">
-      <text class="loading-main">
-        {{ currentSceneConfig.id === 'reverse' ? '✨ 正在疯狂上妆…' : '🔍 正在粉碎话术…' }}
-      </text>
+      <text class="loading-main">🔍 正在粉碎话术…</text>
       <text class="loading-sub">AI 正在扒开 {{ loadingLayers }} 层包装</text>
     </view>
 
     <!-- 翻译结果区 -->
     <view v-if="result && !isLoading" class="result" :class="{ 'result--show': showResult }">
-      <!-- 翻译结果卡片 -->
       <view class="result-card">
+        <!-- 顶部细线装饰 -->
+        <view class="result-topline" />
+
         <!-- 原文 -->
         <view class="result-section">
-          <view class="result-label">
-            <view class="dot dot--red" />
-            <text class="result-label-text result-label-text--red">
-              {{ currentSceneConfig.id === 'reverse' ? '原文 · 大白话' : '原文 · 话术版' }}
-            </text>
+          <view class="section-tag section-tag--warm">
+            <view class="section-tag__dot" />
+            <text class="section-tag__text">原文 · 话术版</text>
           </view>
-          <view class="result-original-box">
-            <text class="result-original">{{ inputText }}</text>
+          <view class="original-quote">
+            <text class="original-quote__text">{{ inputText }}</text>
           </view>
         </view>
 
-        <!-- 人话翻译 -->
-        <view class="result-section result-section--green-bg">
-          <view class="result-label">
-            <view class="dot dot--green" />
-            <text class="result-label-text result-label-text--green">
-              {{ currentSceneConfig.id === 'reverse' ? '上妆 · 拆开看' : '真实意思 · 拆开看' }}
-            </text>
+        <!-- 揭示分割线 -->
+        <view class="reveal-divider">
+          <view class="reveal-divider__line" />
+          <view class="reveal-divider__badge">
+            <view class="reveal-divider__arrow" />
+            <text class="reveal-divider__text">真相揭示</text>
           </view>
+          <view class="reveal-divider__line" />
+        </view>
+
+        <!-- 人话翻译 -->
+        <view class="result-section result-section--truth">
           <view class="truth-list">
-            <view v-for="(item, idx) in resultSummaryPoints" :key="idx" class="truth-item">
-              <view class="truth-index">{{ idx + 1 }}</view>
-              <text class="truth-text">{{ item }}</text>
+            <view
+              v-for="(item, idx) in resultSummaryPoints"
+              :key="idx"
+              class="truth-card"
+            >
+              <view class="truth-card__badge">{{ idx + 1 }}</view>
+              <text class="truth-card__text">{{ item }}</text>
             </view>
           </view>
         </view>
 
         <!-- 逐句拆解 -->
         <view v-if="result.breakdown.length" class="result-section">
-          <view class="result-label">
-            <text class="result-label-text result-label-text--gray">🔬 关键词拆解</text>
+          <view class="section-tag section-tag--muted">
+            <view class="section-tag__dot section-tag__dot--muted" />
+            <text class="section-tag__text section-tag__text--muted">关键词拆解</text>
           </view>
-          <view
-            v-for="(item, idx) in result.breakdown"
-            :key="idx"
-            class="breakdown-row"
-            :class="{ 'breakdown-row--border': idx > 0 }"
-          >
-            <text class="breakdown-from">{{ item.from }}</text>
-            <text class="breakdown-arrow">→</text>
-            <text class="breakdown-to">{{ item.to }}</text>
+          <view class="breakdown-grid">
+            <view
+              v-for="(item, idx) in result.breakdown"
+              :key="idx"
+              class="breakdown-card"
+            >
+              <text class="breakdown-card__from">{{ item.from }}</text>
+              <text class="breakdown-card__arrow">→</text>
+              <text class="breakdown-card__to">{{ item.to }}</text>
+            </view>
           </view>
         </view>
 
         <!-- 操作按钮 -->
         <view class="action-bar">
-          <view class="action-btn" @tap="handleShare">📤 分享</view>
-          <view class="action-btn" @tap="handleCopy">📋 复制</view>
-          <view class="action-btn action-btn--primary" @tap="handleReset">再译一条</view>
+          <view class="action-btn action-btn--glass" @tap="handleCopy">
+            <view class="action-icon action-icon--copy" />
+            <text class="action-btn__label">复制</text>
+          </view>
+          <view class="action-btn action-btn--primary" @tap="handleReset">
+            <text class="action-btn__label">再译一条</text>
+          </view>
         </view>
       </view>
     </view>
@@ -140,7 +145,6 @@
 import { scenes, type TranslationResult } from '@/config/scenes'
 import { requestTranslation } from '@/utils/cloudbase'
 import { normalizeTranslationResult } from '@/utils/translate'
-import { onShareAppMessage } from '@dcloudio/uni-app'
 import { computed, nextTick, ref } from 'vue'
 
 // --- 状态 ---
@@ -150,6 +154,7 @@ const isFocused = ref(false)
 const isLoading = ref(false)
 const result = ref<TranslationResult | null>(null)
 const showResult = ref(false)
+const requestToken = ref(0)
 
 const currentSceneConfig = computed(() => scenes[currentScene.value])
 const activeScenePillId = computed(() => `scene-pill-${currentSceneConfig.value.id}`)
@@ -232,15 +237,18 @@ function getReadableErrorMessage(error: any) {
   return `调用失败：${message.slice(0, 120)}`
 }
 
-// --- 粘贴 ---
-function handlePaste() {
-  uni.getClipboardData({
-    success: (res) => {
-      if (res.data) {
-        inputText.value = res.data.slice(0, 500)
-      }
-    }
-  })
+function clearResultState() {
+  result.value = null
+  showResult.value = false
+}
+
+function handleSceneChange(idx: number) {
+  if (currentScene.value === idx) return
+
+  currentScene.value = idx
+  requestToken.value += 1
+  isLoading.value = false
+  clearResultState()
 }
 
 // --- 翻译 ---
@@ -251,21 +259,26 @@ async function handleTranslate() {
   }
   if (isLoading.value) return
 
+  const sceneConfig = currentSceneConfig.value
+  const sourceText = inputText.value
+  const currentRequestToken = requestToken.value + 1
+  requestToken.value = currentRequestToken
   isLoading.value = true
-  result.value = null
-  showResult.value = false
+  clearResultState()
 
   try {
     console.log('[translate] start', {
-      sceneId: currentSceneConfig.value.id,
-      inputLength: inputText.value.trim().length
+      sceneId: sceneConfig.id,
+      inputLength: sourceText.trim().length
     })
     const rawText = await requestTranslation(
-      currentSceneConfig.value.systemPrompt,
-      inputText.value,
-      currentSceneConfig.value.id,
-      currentSceneConfig.value.temperature
+      sceneConfig.systemPrompt,
+      sourceText,
+      sceneConfig.id,
+      sceneConfig.temperature
     )
+    if (requestToken.value !== currentRequestToken) return
+
     const data = normalizeTranslationResult(rawText)
 
     if (data && data.humanText) {
@@ -275,15 +288,19 @@ async function handleTranslate() {
       }
 
       await nextTick()
+      if (requestToken.value !== currentRequestToken) return
       showResult.value = true
     } else {
       uni.showToast({ title: 'AI 返回格式不对，请重试一次', icon: 'none', duration: 2500 })
     }
   } catch (error) {
+    if (requestToken.value !== currentRequestToken) return
     console.error('cloudbase ai failed:', error)
     uni.showToast({ title: getReadableErrorMessage(error), icon: 'none', duration: 3000 })
   } finally {
-    isLoading.value = false
+    if (requestToken.value === currentRequestToken) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -300,26 +317,12 @@ function handleCopy() {
   })
 }
 
-// --- 分享 ---
-function handleShare() {
-  uni.showToast({ title: '请点击右上角分享', icon: 'none' })
-}
-
 // --- 再译一条 ---
 function handleReset() {
   inputText.value = ''
-  result.value = null
-  showResult.value = false
+  clearResultState()
   uni.pageScrollTo({ scrollTop: 0, duration: 300 })
 }
-
-// --- 小程序分享 ---
-onShareAppMessage(() => {
-  return {
-    title: '黑话“专家”帮你翻译这段话',
-    path: '/pages/index/index'
-  }
-})
 </script>
 
 <style lang="scss">
@@ -408,12 +411,6 @@ $radius-pill: 40rpx;
   transform: translateY(-2rpx);
   box-shadow: 0 16rpx 32rpx rgba($red, 0.14);
 }
-.scene-pill--green {
-  background: rgba($green, 0.1);
-  border-color: $green;
-  color: $green;
-  box-shadow: 0 16rpx 32rpx rgba($green, 0.14);
-}
 .scene-pill__icon {
   font-size: 28rpx;
   line-height: 1;
@@ -466,14 +463,6 @@ $radius-pill: 40rpx;
   align-items: center;
   gap: 16rpx;
 }
-.btn-paste {
-  font-size: 24rpx;
-  color: $text-secondary;
-  padding: 10rpx 20rpx;
-  background: rgba(255, 255, 255, 0.72);
-  border: 2rpx solid $border;
-  border-radius: $radius-pill;
-}
 .btn-translate {
   font-size: 26rpx;
   font-weight: 700;
@@ -485,10 +474,6 @@ $radius-pill: 40rpx;
 }
 .btn-translate--disabled {
   opacity: 0.4;
-}
-.btn-translate--green {
-  background: linear-gradient(90deg, #00c853, $green);
-  box-shadow: 0 4rpx 16rpx rgba($green, 0.35);
 }
 
 // --- 加载态 ---
@@ -518,8 +503,9 @@ $radius-pill: 40rpx;
 .result {
   margin: 36rpx 40rpx 0;
   opacity: 0;
-  transform: translateY(18rpx);
-  transition: opacity 0.45s ease, transform 0.45s ease;
+  transform: translateY(28rpx);
+  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .result--show {
   opacity: 1;
@@ -528,155 +514,246 @@ $radius-pill: 40rpx;
 
 // 翻译结果卡片
 .result-card {
-  background: $card;
-  border: 2rpx solid $border;
-  border-radius: $radius-lg;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(255, 255, 255, 0.6);
+  border-radius: 32rpx;
   overflow: hidden;
-  box-shadow: 0 18rpx 40rpx rgba(133, 88, 58, 0.08);
+  box-shadow:
+    0 2rpx 4rpx rgba(0, 0, 0, 0.02),
+    0 8rpx 20rpx rgba(133, 88, 58, 0.06),
+    0 28rpx 56rpx rgba(133, 88, 58, 0.09);
 }
-.result-section {
-  padding: 32rpx 36rpx;
-  border-top: 2rpx solid $border;
-  &:first-child {
-    border-top: none;
-  }
+
+// 顶部细线
+.result-topline {
+  height: 2rpx;
+  background: linear-gradient(90deg, transparent, rgba($red, 0.2), transparent);
 }
-.result-section--green-bg {
-  background: rgba($green, 0.06);
-}
-.result-label {
-  display: flex;
+
+// 区块标签
+.section-tag {
+  display: inline-flex;
   align-items: center;
-  gap: 12rpx;
-  margin-bottom: 16rpx;
+  gap: 10rpx;
+  padding: 8rpx 22rpx;
+  border-radius: 20rpx;
+  margin-bottom: 20rpx;
 }
-.dot {
-  width: 10rpx;
-  height: 10rpx;
+.section-tag--warm {
+  background: rgba($red, 0.07);
+}
+.section-tag--muted {
+  background: rgba(60, 36, 28, 0.04);
+}
+.section-tag__dot {
+  width: 8rpx;
+  height: 8rpx;
   border-radius: 50%;
-}
-.dot--red {
   background: $red;
 }
-.dot--green {
-  background: $green;
+.section-tag__dot--muted {
+  background: $text-weak;
 }
-.result-label-text {
-  font-size: 20rpx;
-}
-.result-label-text--red {
+.section-tag__text {
+  font-size: 22rpx;
+  font-weight: 600;
   color: $red;
+  letter-spacing: 1rpx;
 }
-.result-label-text--green {
-  color: $green;
-}
-.result-label-text--gray {
+.section-tag__text--muted {
   color: $text-secondary;
 }
-.result-original-box {
-  min-height: 160rpx;
-  max-height: 360rpx;
-  overflow-y: auto;
-  padding: 24rpx 26rpx;
-  background: rgba($red, 0.04);
-  border: 2rpx solid rgba($red, 0.1);
-  border-radius: 24rpx;
-  box-sizing: border-box;
+
+.result-section {
+  padding: 32rpx 36rpx;
 }
-.result-original {
-  display: block;
+.result-section--truth {
+  padding-top: 0;
+}
+
+// 原文引用样式
+.original-quote {
+  padding: 24rpx 28rpx;
+  background: linear-gradient(135deg, rgba($red, 0.03), rgba($orange, 0.02));
+  border-radius: 20rpx;
+}
+.original-quote__text {
   font-size: 26rpx;
   color: $text-secondary;
-  text-decoration: line-through;
-  text-decoration-color: rgba($red, 0.25);
-  line-height: 1.7;
+  line-height: 1.75;
   word-break: break-all;
+  opacity: 0.75;
 }
+
+// 揭示分割线
+.reveal-divider {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 4rpx 36rpx 16rpx;
+}
+.reveal-divider__line {
+  flex: 1;
+  height: 1rpx;
+  background: linear-gradient(90deg, transparent, rgba($green, 0.25), transparent);
+}
+.reveal-divider__badge {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 10rpx 28rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, rgba($green, 0.1), rgba($green, 0.04));
+  border: 1rpx solid rgba($green, 0.15);
+}
+.reveal-divider__arrow {
+  width: 0;
+  height: 0;
+  border-left: 8rpx solid transparent;
+  border-right: 8rpx solid transparent;
+  border-top: 10rpx solid $green;
+  flex-shrink: 0;
+}
+.reveal-divider__text {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: $green;
+  letter-spacing: 1rpx;
+}
+
+// 真相卡片
 .truth-list {
   display: grid;
-  gap: 18rpx;
+  gap: 16rpx;
 }
-.truth-item {
+.truth-card {
   display: flex;
   align-items: flex-start;
-  gap: 18rpx;
-  padding: 22rpx 24rpx;
-  background: rgba(255, 255, 255, 0.74);
-  border: 2rpx solid rgba($green, 0.16);
+  gap: 20rpx;
+  padding: 26rpx 28rpx;
+  background: linear-gradient(135deg, rgba($green, 0.06), rgba($green, 0.015));
+  border: 1rpx solid rgba($green, 0.12);
   border-radius: 24rpx;
-  box-shadow: 0 14rpx 30rpx rgba(24, 181, 124, 0.08);
 }
-.truth-index {
-  width: 56rpx;
-  height: 56rpx;
+.truth-card__badge {
+  width: 52rpx;
+  height: 52rpx;
   flex-shrink: 0;
-  border-radius: 18rpx;
-  background: linear-gradient(180deg, rgba($green, 0.18), rgba($green, 0.06));
-  color: $green;
-  font-size: 26rpx;
+  border-radius: 16rpx;
+  background: linear-gradient(135deg, $green, rgba($green, 0.72));
+  color: #fff;
+  font-size: 24rpx;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 6rpx 18rpx rgba($green, 0.28);
 }
-.truth-text {
+.truth-card__text {
   flex: 1;
   font-size: 30rpx;
   line-height: 1.65;
   color: $text;
   font-weight: 700;
+  padding-top: 6rpx;
 }
 
-// 逐句拆解
-.breakdown-row {
-  display: flex;
+// 关键词拆解
+.breakdown-grid {
+  display: grid;
+  gap: 14rpx;
+}
+.breakdown-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  padding: 16rpx 0;
+  column-gap: 16rpx;
+  padding: 22rpx 24rpx;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1rpx solid rgba(60, 36, 28, 0.05);
+  border-radius: 20rpx;
 }
-.breakdown-row--border {
-  border-top: 2rpx solid rgba(60, 36, 28, 0.06);
-}
-.breakdown-from {
-  font-size: 26rpx;
+.breakdown-card__from {
+  min-width: 0;
+  font-size: 25rpx;
   color: $text-secondary;
   text-decoration: line-through;
-  flex-shrink: 0;
-  max-width: 40%;
+  text-decoration-color: rgba($red, 0.3);
+  text-align: left;
 }
-.breakdown-arrow {
+.breakdown-card__arrow {
   font-size: 24rpx;
   color: $text-weak;
-  margin: 0 16rpx;
   flex-shrink: 0;
 }
-.breakdown-to {
-  font-size: 26rpx;
+.breakdown-card__to {
+  min-width: 0;
+  font-size: 25rpx;
   color: $green;
   font-weight: 600;
-  flex: 1;
+  text-align: left;
 }
 
 // 操作按钮
 .action-bar {
   display: flex;
-  gap: 20rpx;
-  padding: 28rpx 36rpx;
-  border-top: 2rpx solid $border;
+  gap: 16rpx;
+  padding: 24rpx 36rpx 28rpx;
+  border-top: 1rpx solid rgba(60, 36, 28, 0.05);
 }
 .action-btn {
   flex: 1;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
   font-size: 26rpx;
+  padding: 24rpx 0;
+  border-radius: 20rpx;
+  font-weight: 500;
+}
+.action-btn__label {
+  line-height: 1;
+}
+.action-btn--glass {
   color: $text-secondary;
-  background: rgba(255, 255, 255, 0.76);
-  border: 2rpx solid $border;
-  border-radius: $radius-sm;
-  padding: 22rpx 0;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1rpx solid rgba(60, 36, 28, 0.07);
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.02);
 }
 .action-btn--primary {
   color: #fff;
-  background: linear-gradient(90deg, $red, $orange);
+  background: linear-gradient(135deg, $red, $orange);
   border: none;
-  box-shadow: 0 10rpx 24rpx rgba($red, 0.24);
+  font-weight: 700;
+  box-shadow:
+    0 8rpx 20rpx rgba($red, 0.3),
+    0 2rpx 6rpx rgba($red, 0.15);
+}
+
+// 纯 CSS 图标
+.action-icon {
+  width: 28rpx;
+  height: 28rpx;
+  position: relative;
+  flex-shrink: 0;
+}
+.action-icon--copy {
+  width: 20rpx;
+  height: 24rpx;
+  border: 3rpx solid $text-secondary;
+  border-radius: 4rpx;
+  margin-top: 6rpx;
+  &::before {
+    content: '';
+    position: absolute;
+    top: -8rpx;
+    left: 8rpx;
+    width: 20rpx;
+    height: 24rpx;
+    border: 3rpx solid $text-secondary;
+    border-radius: 4rpx;
+    background: rgba(255, 255, 255, 0.8);
+  }
 }
 </style>

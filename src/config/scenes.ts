@@ -1,4 +1,4 @@
-export type SceneId = 'work' | 'agent' | 'date' | 'client' | 'hr' | 'reverse'
+export type SceneId = 'work' | 'agent' | 'date' | 'client' | 'hr'
 
 export interface TranslationBreakdown {
   from: string
@@ -39,9 +39,6 @@ const DIRECT_STYLE_RULES = `输出风格：
 const DIRECT_BREAKDOWN_RULES =
   'breakdown 提取 1-6 个最值得翻译的词或短句；from 保留原文，to 直接写真实意思，可以带刺，不要解释，不要超过 18 个字。'
 
-const REVERSE_BREAKDOWN_RULES =
-  'breakdown 提取 1-6 个最值得包装的词或短句；from 保留原文，to 用更像周报或汇报里的说法改写，尽量短。'
-
 function buildDirectPrompt(content: string) {
   return `${content}
 
@@ -52,20 +49,12 @@ ${DIRECT_BREAKDOWN_RULES}
 ${JSON_RESPONSE_FORMAT}`
 }
 
-function buildReversePrompt(content: string) {
-  return `${content}
-
-${REVERSE_BREAKDOWN_RULES}
-
-${JSON_RESPONSE_FORMAT}`
-}
-
 export const scenes: SceneConfig[] = [
   {
     id: 'work',
     icon: '💼',
     label: '职场黑话',
-    placeholder: '例：我们需要拉齐认知颗粒度，赋能前线业务…',
+    placeholder: '例：最近公司战略正在做一些微调，我们希望每个人都能找到最匹配的位置。',
     systemPrompt: buildDirectPrompt(`角色：职场黑话直译器。
 任务：把 HR、领导、公司公告里的体面话，直接翻成打工人一眼就懂的真实意思。
 
@@ -105,7 +94,7 @@ export const scenes: SceneConfig[] = [
     id: 'agent',
     icon: '🏠',
     label: '中介话术',
-    placeholder: '例：精装修拎包入住，采光好，业主诚心出售…',
+    placeholder: '例：这个房源真的很抢手，我建议您尽快决定。',
     systemPrompt: buildDirectPrompt(`角色：中介话术高级阴阳怪气直译器。
 任务：把中介、房东、房源文案里的体面话，直接翻成租客一眼就懂的真实意思。
 
@@ -151,7 +140,7 @@ export const scenes: SceneConfig[] = [
     id: 'date',
     icon: '💕',
     label: '相亲潜台词',
-    placeholder: '例：我这个人比较简单，不太看重物质条件…',
+    placeholder: '例：我最近真的太忙了，想等稳定一点再好好规划我们的事。',
     systemPrompt: buildDirectPrompt(`角色：相亲潜台词高级阴阳怪气直译器。
 任务：把相亲、暧昧、恋爱沟通里的体面话，直接翻成当事人一眼就懂的真实意思。
 
@@ -197,7 +186,7 @@ export const scenes: SceneConfig[] = [
     id: 'client',
     icon: '🎨',
     label: '甲方需求',
-    placeholder: '例：大气一点，高端一点，你先出几版看看…',
+    placeholder: '例：大气一点，高端一点，你先出几版看看。',
     systemPrompt: buildDirectPrompt(`角色：甲方需求高级阴阳怪气直译器。
 任务：把甲方、老板、产品经理的模糊需求，直接翻成执行的人一眼就懂的真实意思。
 
@@ -243,7 +232,7 @@ export const scenes: SceneConfig[] = [
     id: 'hr',
     icon: '📄',
     label: 'HR话术',
-    placeholder: '例：弹性工作制，有竞争力的薪资，拥抱变化…',
+    placeholder: '例：我们提供有竞争力的薪资。',
     systemPrompt: buildDirectPrompt(`角色：HR 话术高级阴阳怪气直译器。
 任务：把招聘 JD、HR 沟通、面试反馈里的体面话，直接翻成求职者一眼就懂的真实意思。
 
@@ -283,17 +272,6 @@ export const scenes: SceneConfig[] = [
 
 表面：团队氛围非常年轻有活力。
 真实：人大概率年轻，活多钱未必多，还默认你能一直扛。`),
-    temperature: 0.6
-  },
-  {
-    id: 'reverse',
-    icon: '✨',
-    label: '反向上妆',
-    placeholder: '例：这周啥也没干，就开了几个会…',
-    systemPrompt: buildReversePrompt(`角色：职场包装大师。
-任务：把大白话包装成适合周报、OKR、汇报 PPT 的高级表述，原意不变，但看起来更专业。
-风格：认真包装，不要纯搞笑乱编，优先使用常见职场术语。
-参考：开会=跨部门认知对齐，没进展=调研和方案沉淀，改 bug=稳定性优化，摸鱼=行业研究和竞品分析。`),
     temperature: 0.6
   }
 ]
