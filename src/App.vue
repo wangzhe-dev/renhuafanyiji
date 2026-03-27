@@ -1,11 +1,11 @@
-<script setup lang="ts">
-import { onLaunch } from '@dcloudio/uni-app'
-
-onLaunch(() => {
-  wx.cloud.init({
-    traceUser: true
-  })
-})
+<script lang="ts">
+export default {
+  onLaunch() {
+    wx.cloud.init({
+      env: 'fanyiji-5gi10til65cfdcfd'
+    })
+  }
+}
 </script>
 
 <style lang="scss">

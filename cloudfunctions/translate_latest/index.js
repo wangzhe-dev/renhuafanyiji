@@ -7,7 +7,7 @@ const app = tcb.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 })
 const aiModel = app.ai().createModel('hunyuan-exp')
-const BUILD_TAG = 'translate-2026-03-27-1835'
+const BUILD_TAG = 'translate_latest-2026-03-27-1845'
 
 exports.main = async (event) => {
   const { text, sceneId, systemPrompt } = event

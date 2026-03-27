@@ -33,7 +33,7 @@
       <textarea
         v-model="inputText"
         class="input-textarea"
-        :placeholder="scenes[currentScene].placeholder"
+        :placeholder="currentSceneConfig.placeholder"
         placeholder-class="input-placeholder"
         :maxlength="500"
         auto-height
@@ -48,12 +48,12 @@
           <view
             class="btn-translate"
             :class="{
-              'btn-translate--disabled': !inputText.trim() || isLoading,
-              'btn-translate--green': scenes[currentScene].id === 'reverse'
+              'btn-translate--disabled': !hasInputText || isLoading,
+              'btn-translate--green': currentSceneConfig.id === 'reverse'
             }"
             @tap="handleTranslate"
           >
-            {{ scenes[currentScene].id === 'reverse' ? '✨ 上妆' : '🔍 翻译人话' }}
+            {{ currentSceneConfig.id === 'reverse' ? '✨ 上妆' : '🔍 翻译人话' }}
           </view>
         </view>
       </view>
@@ -62,7 +62,7 @@
     <!-- 加载态 -->
     <view v-if="isLoading" class="loading">
       <text class="loading-main">
-        {{ scenes[currentScene].id === 'reverse' ? '✨ 正在疯狂上妆…' : '🔍 正在粉碎话术…' }}
+        {{ currentSceneConfig.id === 'reverse' ? '✨ 正在疯狂上妆…' : '🔍 正在粉碎话术…' }}
       </text>
       <text class="loading-sub">AI 正在扒开 {{ loadingLayers }} 层包装</text>
     </view>
@@ -73,7 +73,7 @@
       <view class="meter-card">
         <view class="meter-left">
           <text class="meter-label">
-            {{ scenes[currentScene].id === 'reverse' ? '💄 上妆浓度' : '💄 妆感浓度' }}
+            {{ currentSceneConfig.id === 'reverse' ? '💄 上妆浓度' : '💄 妆感浓度' }}
           </text>
           <view class="meter-track">
             <view class="meter-fill" :style="{ width: animatedScore + '%' }" />
@@ -101,7 +101,7 @@
           <view class="result-label">
             <view class="dot dot--red" />
             <text class="result-label-text result-label-text--red">
-              {{ scenes[currentScene].id === 'reverse' ? '原文 · 大白话' : '原文 · 话术版' }}
+              {{ currentSceneConfig.id === 'reverse' ? '原文 · 大白话' : '原文 · 话术版' }}
             </text>
           </view>
           <text class="result-original">{{ inputText }}</text>
@@ -112,7 +112,7 @@
           <view class="result-label">
             <view class="dot dot--green" />
             <text class="result-label-text result-label-text--green">
-              {{ scenes[currentScene].id === 'reverse' ? '上妆 · 高大上版' : '人话 · 真实含义' }}
+              {{ currentSceneConfig.id === 'reverse' ? '上妆 · 高大上版' : '人话 · 真实含义' }}
             </text>
           </view>
           <text class="result-human">{{ result.humanText }}</text>
@@ -148,65 +148,57 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick } from 'vue'
-
-// --- 场景配置 ---
-const scenes = [
-  { id: 'work', icon: '💼', label: '职场黑话', placeholder: '例：我们需要拉齐认知颗粒度，赋能前线业务…' },
-  { id: 'agent', icon: '🏠', label: '中介话术', placeholder: '例：精装修拎包入住，采光好，业主诚心出售…' },
-  { id: 'date', icon: '💕', label: '相亲潜台词', placeholder: '例：我这个人比较简单，不太看重物质条件…' },
-  { id: 'client', icon: '🎨', label: '甲方需求', placeholder: '例：大气一点，高端一点，你先出几版看看…' },
-  { id: 'hr', icon: '📄', label: 'HR话术', placeholder: '例：弹性工作制，有竞争力的薪资，拥抱变化…' },
-  { id: 'reverse', icon: '✨', label: '反向上妆', placeholder: '例：这周啥也没干，就开了几个会…' }
-]
-
-// --- 场景 prompt ---
-const scenePrompts: Record<string, string> = {
-  work: `你是一个毒舌翻译官，专门翻译职场黑话。用户会给你一段职场话术，你要：
-1. 把它翻译成大白话（要有幽默感和毒舌感）
-2. 给出妆感浓度评分（0-100，纯黑话90+，半黑话60-80，基本说人话30以下）
-3. 给出诊断词（重度浓妆/中度美颜/轻度滤镜/素颜/整容级）
-4. 逐句拆解每个术语的真实含义
-严格返回JSON格式：{"humanText":"翻译后的大白话","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文术语","to":"大白话含义"}]}`,
-
-  agent: `你是一个毒舌翻译官，专门翻译中介话术。用户会给你一段中介/销售话术，你要翻译成大白话，揭露真相。
-评分标准：夸大其词90+，小幅美化60-80，基本属实30以下。
-严格返回JSON格式：{"humanText":"翻译后的大白话","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文术语","to":"大白话含义"}]}`,
-
-  date: `你是一个毒舌翻译官，专门翻译相亲中的潜台词。用户会给你一段相亲对话，你要翻译出真实含义。
-评分标准：深度包装90+，轻度修饰60-80，比较真诚30以下。
-严格返回JSON格式：{"humanText":"翻译后的大白话","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文术语","to":"大白话含义"}]}`,
-
-  client: `你是一个毒舌翻译官，专门翻译甲方的模糊需求。用户会给你一段甲方说的话，你要翻译成真实需求。
-评分标准：完全说不清90+，半懂不懂60-80，需求还算清晰30以下。
-严格返回JSON格式：{"humanText":"翻译后的大白话","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文术语","to":"大白话含义"}]}`,
-
-  hr: `你是一个毒舌翻译官，专门翻译HR的招聘话术和职场套话。用户会给你一段HR说的话，你要翻译成真实含义。
-评分标准：深度话术90+，常规美化60-80，比较实诚30以下。
-严格返回JSON格式：{"humanText":"翻译后的大白话","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文术语","to":"大白话含义"}]}`,
-
-  reverse: `你是一个专业的"上妆师"，专门把大白话包装成高大上的话术。用户会给你一段大白话，你要：
-1. 把它包装成高大上的职场话术版本
-2. 给出上妆浓度评分（你包装后有多浮夸，0-100）
-3. 给出诊断词
-4. 逐句对应拆解
-严格返回JSON格式：{"humanText":"包装后的高大上版本","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文大白话","to":"包装后的话术"}]}`
-}
+import { onShareAppMessage } from '@dcloudio/uni-app'
+import { scenes, type TranslationResult } from '@/config/scenes'
+import { requestTranslation } from '@/utils/cloudbase'
+import { normalizeTranslationResult } from '@/utils/translate'
 
 // --- 状态 ---
 const currentScene = ref(0)
 const inputText = ref('')
 const isFocused = ref(false)
 const isLoading = ref(false)
-const result = ref<{
-  humanText: string
-  score: number
-  verdict: string
-  breakdown: { from: string; to: string }[]
-} | null>(null)
+const result = ref<TranslationResult | null>(null)
 const showResult = ref(false)
 const animatedScore = ref(0)
 
+const currentSceneConfig = computed(() => scenes[currentScene.value])
+const hasInputText = computed(() => inputText.value.trim().length > 0)
 const loadingLayers = computed(() => Math.max(3, Math.floor(inputText.value.length / 10)))
+
+function getReadableErrorMessage(error: any) {
+  const message = `${error?.errMsg || error?.message || ''}`
+
+  if (!message) {
+    return '调用失败，请重试'
+  }
+
+  if (/publishable key|accesskey|access key/i.test(message)) {
+    return 'CloudBase accessKey 无效，请检查 src/config/cloud.ts'
+  }
+
+  if (/signInWithOpenId|wx api undefined|login/i.test(message)) {
+    return 'CloudBase 登录失败，请确认在微信开发者工具里运行并且环境配置正确'
+  }
+
+  if (/permission|unauthorized|forbidden/i.test(message)) {
+    return 'CloudBase 权限不足，请检查 API Key、环境权限和 AI 开通状态'
+  }
+
+  if (/timeout|超时/i.test(message)) {
+    return '模型响应超时，请重试一次'
+  }
+
+  if (/domain|url not in domain list|合法域名/i.test(message)) {
+    return '请求域名未配置，请把 CloudBase 域名加入小程序 request 合法域名'
+  }
+
+  if (/AI\+ 请求出错|model|hunyuan|resource_exhausted/i.test(message)) {
+    return 'AI 调用失败，请确认 AI 能力、模型权限和额度已开通'
+  }
+
+  return `调用失败：${message.slice(0, 120)}`
+}
 
 // --- 粘贴 ---
 function handlePaste() {
@@ -221,26 +213,28 @@ function handlePaste() {
 
 // --- 翻译 ---
 async function handleTranslate() {
-  if (!inputText.value.trim() || isLoading.value) return
+  if (!hasInputText.value) {
+    uni.showToast({ title: '先输入要翻译的内容', icon: 'none' })
+    return
+  }
+  if (isLoading.value) return
 
   isLoading.value = true
   result.value = null
   showResult.value = false
   animatedScore.value = 0
 
-  const sceneId = scenes[currentScene.value].id
-
   try {
-    const res = await wx.cloud.callFunction({
-      name: 'translate',
-      data: {
-        text: inputText.value,
-        sceneId,
-        systemPrompt: scenePrompts[sceneId]
-      }
-    }) as any
-
-    const data = res.result
+    console.log('[translate] start', {
+      sceneId: currentSceneConfig.value.id,
+      inputLength: inputText.value.trim().length
+    })
+    const rawText = await requestTranslation(
+      currentSceneConfig.value.systemPrompt,
+      inputText.value,
+      currentSceneConfig.value.id
+    )
+    const data = normalizeTranslationResult(rawText)
 
     if (data && data.humanText) {
       result.value = {
@@ -258,10 +252,11 @@ async function handleTranslate() {
         animatedScore.value = result.value!.score
       }, 100)
     } else {
-      uni.showToast({ title: '翻译失败，请重试', icon: 'none' })
+      uni.showToast({ title: 'AI 返回格式不对，请重试一次', icon: 'none', duration: 2500 })
     }
-  } catch {
-    uni.showToast({ title: '网络异常，请重试', icon: 'none' })
+  } catch (error) {
+    console.error('cloudbase ai failed:', error)
+    uni.showToast({ title: getReadableErrorMessage(error), icon: 'none', duration: 3000 })
   } finally {
     isLoading.value = false
   }

@@ -1,12 +1,12 @@
 {
 	"name": "人话翻译机",
-	"appid": "__UNI__9AA0242",
+	"appid": "wxcd765b5e58f397da",
 	"description": "粘贴话术，一键看穿真相",
 	"versionName": "1.0.0",
 	"versionCode": "100",
 	"transformPx": false,
 	"mp-weixin": {
-		"appid": "",
+		"appid": "wxcd765b5e58f397da",
 		"setting": {
 			"urlCheck": false,
 			"postcss": true,
