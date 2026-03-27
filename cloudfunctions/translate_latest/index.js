@@ -8,6 +8,7 @@ const app = tcb.init({
 })
 const aiModel = app.ai().createModel('hunyuan-exp')
 const BUILD_TAG = 'translate_latest-2026-03-27-2035'
+const MAX_OUTPUT_TOKENS = 1024
 
 exports.main = async (event) => {
   const { text, sceneId, systemPrompt } = event
@@ -61,7 +62,7 @@ exports.main = async (event) => {
           { role: 'user', content: text }
         ],
         temperature,
-        max_tokens: 1024
+        max_tokens: MAX_OUTPUT_TOKENS
       }),
       25000,
       'AI 模型调用超时，请检查网络和云端环境'
