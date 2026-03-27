@@ -1,7 +1,8 @@
 export async function requestTranslation(
   systemPrompt: string,
   userText: string,
-  sceneId: string
+  sceneId: string,
+  temperature: number
 ): Promise<any> {
   const functionNames = ['translate_latest', 'translate']
   const cloud = (wx as any)?.cloud
@@ -26,7 +27,8 @@ export async function requestTranslation(
           data: {
             text: userText,
             sceneId,
-            systemPrompt
+            systemPrompt,
+            temperature
           }
         }),
         30000,

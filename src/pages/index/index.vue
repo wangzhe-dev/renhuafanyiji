@@ -232,7 +232,8 @@ async function handleTranslate() {
     const rawText = await requestTranslation(
       currentSceneConfig.value.systemPrompt,
       inputText.value,
-      currentSceneConfig.value.id
+      currentSceneConfig.value.id,
+      currentSceneConfig.value.temperature
     )
     const data = normalizeTranslationResult(rawText)
 

@@ -7,10 +7,11 @@ const app = tcb.init({
   env: cloud.DYNAMIC_CURRENT_ENV
 })
 const aiModel = app.ai().createModel('hunyuan-exp')
-const BUILD_TAG = 'translate-2026-03-27-1835'
+const BUILD_TAG = 'translate-2026-03-27-2035'
 
 exports.main = async (event) => {
   const { text, sceneId, systemPrompt } = event
+  const temperature = normalizeTemperature(event?.temperature)
   const requestId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   const wxContext = cloud.getWXContext()
   const envId = wxContext?.ENV || process.env.TCB_ENV || process.env.SCF_NAMESPACE || 'unknown-env'
@@ -20,7 +21,8 @@ exports.main = async (event) => {
     envId,
     sceneId,
     textLength: typeof text === 'string' ? text.length : 0,
-    hasSystemPrompt: typeof systemPrompt === 'string' && systemPrompt.length > 0
+    systemPromptLength: typeof systemPrompt === 'string' ? systemPrompt.length : 0,
+    temperature
   })
 
   // 校验
@@ -48,7 +50,8 @@ exports.main = async (event) => {
     console.log('[translate] calling model', {
       requestId,
       provider: 'hunyuan-exp',
-      model: 'hunyuan-turbos-latest'
+      model: 'hunyuan-turbos-latest',
+      temperature
     })
     const res = await withTimeout(
       aiModel.generateText({
@@ -57,7 +60,7 @@ exports.main = async (event) => {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: text }
         ],
-        temperature: 0.7,
+        temperature,
         max_tokens: 1024
       }),
       25000,
@@ -84,8 +87,15 @@ exports.main = async (event) => {
           score: 50,
           verdict: '未知浓度',
           breakdown: [],
-          _debug: { requestId, envId, usage },
-          debugInfo: { build: BUILD_TAG, requestId, envId, usage }
+          _debug: { requestId, envId, usage, temperature },
+          debugInfo: {
+            build: BUILD_TAG,
+            requestId,
+            envId,
+            usage,
+            temperature,
+            systemPromptLength: systemPrompt.length
+          }
         }
       }
       return { error: 'AI 没有返回有效内容，请重试一次' }
@@ -103,8 +113,15 @@ exports.main = async (event) => {
 
     return {
       ...parsed,
-      _debug: { requestId, envId, usage },
-      debugInfo: { build: BUILD_TAG, requestId, envId, usage }
+      _debug: { requestId, envId, usage, temperature },
+      debugInfo: {
+        build: BUILD_TAG,
+        requestId,
+        envId,
+        usage,
+        temperature,
+        systemPromptLength: systemPrompt.length
+      }
     }
   } catch (err) {
     console.error('[translate] error', { requestId, err })
@@ -207,6 +224,12 @@ function extractUsage(res) {
     }
   }
   return null
+}
+
+function normalizeTemperature(value) {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return 0.35
+  return Math.min(1, Math.max(0, num))
 }
 
 function isLikelyLocalDebug(envId) {
