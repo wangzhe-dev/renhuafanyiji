@@ -1,912 +1,683 @@
 <template>
   <view class="page">
+    <!-- 红色光晕装饰 -->
+    <view class="glow-bg" />
 
-    <!-- ── Tab Header ── -->
-    <view class="header">
-      <view class="tab-strip">
-        <view
-          v-for="(t, i) in feedTabs" :key="t"
-          class="tab-item" :class="{ active: activeTab === i }"
-          @tap="switchTab(i)"
-        >
-          <text class="tab-text">{{ t }}</text>
-        </view>
-        <view class="tab-ind-wrap" :style="{ transform: `translateX(${activeTab * 100}%)` }">
-          <view class="tab-ind-bar" />
-        </view>
+    <!-- 顶部品牌区 -->
+    <view class="brand">
+      <view class="brand-row">
+        <view class="brand-logo">🔍</view>
+        <text class="brand-name">人话翻译机</text>
       </view>
+      <text class="brand-slogan">粘贴话术，一键看穿真相</text>
     </view>
 
-    <view v-if="showSloganBanner" class="slogan-banner">
-      <view class="sb-main">
-        <uni-icons type="info-filled" size="14" color="#5B5BD6" />
-        <text class="sb-text">看 AI 消耗，抄高性价比 Skill，少烧 Token。</text>
+    <!-- 场景选择栏 -->
+    <scroll-view class="scene-bar" scroll-x enable-flex :show-scrollbar="false">
+      <view
+        v-for="(scene, idx) in scenes"
+        :key="scene.id"
+        class="scene-pill"
+        :class="{
+          'scene-pill--active': currentScene === idx,
+          'scene-pill--green': currentScene === idx && scene.id === 'reverse'
+        }"
+        @tap="currentScene = idx"
+      >
+        {{ scene.icon }} {{ scene.label }}
       </view>
-      <view class="sb-actions">
-        <view class="sb-close" @tap.stop="dismissSloganBanner">
-          <uni-icons type="closeempty" size="14" color="rgba(0,0,0,0.45)" />
-        </view>
-      </view>
-    </view>
+    </scroll-view>
 
-    <!-- ── FAB：记一笔（仅消耗记录 Tab 可见）── -->
-    <view v-if="activeTab === 0" class="fab" @tap="toCreateRecord">
-      <uni-icons type="compose" size="22" color="#fff" />
-    </view>
-
-    <!-- ── 左右滑动内容区 ── -->
-    <swiper
-      class="tab-swiper"
-      :current="activeTab"
-      :disable-touch="activeTab === 1"
-      :duration="280"
-      @change="onSwiperChange"
-    >
-      <swiper-item class="tab-pane">
-        <feed-post ref="feedRef" @go-skill="enterSkillTab">
-          <template #header>
-            <view class="newbie-home-block">
-              <view class="nh-head">
-                <view class="nh-title-wrap">
-                  <uni-icons type="star-filled" size="15" color="#E45C1A" />
-                  <text class="nh-title">新手必试 · Skill 入门</text>
-                </view>
-                <text class="nh-more" @tap="enterSkillTab">去 Skill 区</text>
-              </view>
-              <text class="nh-sub">先复制 1 条试试，再按你的场景改变量。</text>
-
-              <view v-if="newbieLoading" class="nh-loading">
-                <text class="nh-loading-text">加载中...</text>
-              </view>
-
-              <view
-                v-else-if="newbieSkills.length"
-                class="nh-list"
-              >
-                <view
-                  v-for="skill in newbieSkills"
-                  :key="`home-newbie-${skill.id}`"
-                  class="nh-item"
-                  @tap="toSkillDetail(skill.id)"
-                >
-                  <view class="nh-item-main">
-                    <text class="nh-item-title line-1">{{ skill.title }}</text>
-                    <view class="nh-item-meta">
-                      <text class="nh-scene">{{ skill.scene }}</text>
-                      <text class="nh-copy-count">{{ skill.copyCountText }}</text>
-                    </view>
-                  </view>
-
-                  <view class="nh-copy-btn" @tap.stop="copyNewbieSkill(skill)">
-                    <text class="nh-copy-text">复制</text>
-                  </view>
-                </view>
-              </view>
-
-              <view v-else class="nh-empty">
-                <text class="nh-empty-text">暂无推荐，去 Skill 区看看</text>
-              </view>
-            </view>
-          </template>
-        </feed-post>
-      </swiper-item>
-      <swiper-item class="tab-pane">
-        <skill-feed @edge-swipe="onSkillEdgeSwipe" />
-      </swiper-item>
-    </swiper>
-
-    <view v-if="showOnboarding" class="onboarding-mask" @tap="skipOnboarding">
-      <view class="onboarding-panel" @tap.stop>
-        <view class="ob-head">
-          <text class="ob-step">{{ onboardingStep }}/{{ onboardingSlides.length }}</text>
-          <view class="ob-close" @tap="skipOnboarding">
-            <uni-icons type="closeempty" size="16" color="rgba(0,0,0,0.45)" />
-          </view>
-        </view>
-
-        <view class="ob-icon-wrap" :style="{ background: currentSlide.gradient }">
-          <uni-icons :type="currentSlide.icon" size="34" color="#FFFFFF" />
-        </view>
-
-        <text class="ob-title">{{ currentSlide.title }}</text>
-        <text class="ob-desc">{{ currentSlide.desc }}</text>
-
-        <view v-if="currentSlide.pill" class="ob-pill">
-          <text class="ob-pill-t">{{ currentSlide.pill }}</text>
-        </view>
-
-        <view class="ob-points">
+    <!-- 文本输入区 -->
+    <view class="input-card" :class="{ 'input-card--focus': isFocused }">
+      <textarea
+        v-model="inputText"
+        class="input-textarea"
+        :placeholder="scenes[currentScene].placeholder"
+        placeholder-class="input-placeholder"
+        :maxlength="500"
+        auto-height
+        @focus="isFocused = true"
+        @blur="isFocused = false"
+      />
+      <view class="input-divider" />
+      <view class="input-actions">
+        <text class="input-count">{{ inputText.length }}/500</text>
+        <view class="input-btns">
+          <view class="btn-paste" @tap="handlePaste">📋 粘贴</view>
           <view
-            v-for="(_, index) in onboardingSlides"
-            :key="`ob-point-${index}`"
-            class="ob-point"
-            :class="{ on: onboardingStep === index + 1 }"
-          />
-        </view>
-
-        <view class="ob-actions">
-          <view
-            v-if="!isLastSlide"
-            class="ob-btn ob-btn-primary"
-            @tap="nextOnboarding"
+            class="btn-translate"
+            :class="{
+              'btn-translate--disabled': !inputText.trim() || isLoading,
+              'btn-translate--green': scenes[currentScene].id === 'reverse'
+            }"
+            @tap="handleTranslate"
           >
-            <text class="ob-btn-text">下一步</text>
+            {{ scenes[currentScene].id === 'reverse' ? '✨ 上妆' : '🔍 翻译人话' }}
           </view>
-
-          <template v-else>
-            <view class="ob-btn ob-btn-ghost" @tap="finishOnboarding('consume')">
-              <text class="ob-btn-text ghost">看大家怎么烧钱</text>
-            </view>
-            <view class="ob-btn ob-btn-primary" @tap="finishOnboarding('skill')">
-              <text class="ob-btn-text">直接抄 Skill</text>
-            </view>
-          </template>
         </view>
       </view>
     </view>
 
+    <!-- 加载态 -->
+    <view v-if="isLoading" class="loading">
+      <text class="loading-main">
+        {{ scenes[currentScene].id === 'reverse' ? '✨ 正在疯狂上妆…' : '🔍 正在粉碎话术…' }}
+      </text>
+      <text class="loading-sub">AI 正在扒开 {{ loadingLayers }} 层包装</text>
+    </view>
+
+    <!-- 翻译结果区 -->
+    <view v-if="result && !isLoading" class="result" :class="{ 'result--show': showResult }">
+      <!-- 妆感浓度仪表 -->
+      <view class="meter-card">
+        <view class="meter-left">
+          <text class="meter-label">
+            {{ scenes[currentScene].id === 'reverse' ? '💄 上妆浓度' : '💄 妆感浓度' }}
+          </text>
+          <view class="meter-track">
+            <view class="meter-fill" :style="{ width: animatedScore + '%' }" />
+          </view>
+          <view class="meter-scale">
+            <text class="meter-scale-item">素颜</text>
+            <text class="meter-scale-item">淡妆</text>
+            <text class="meter-scale-item">浓妆</text>
+            <text class="meter-scale-item">整容</text>
+          </view>
+        </view>
+        <view class="meter-right">
+          <view class="meter-score-row">
+            <text class="meter-score">{{ result.score }}</text>
+            <text class="meter-percent">%</text>
+          </view>
+          <text class="meter-verdict">{{ result.verdict }}</text>
+        </view>
+      </view>
+
+      <!-- 翻译结果卡片 -->
+      <view class="result-card">
+        <!-- 原文 -->
+        <view class="result-section">
+          <view class="result-label">
+            <view class="dot dot--red" />
+            <text class="result-label-text result-label-text--red">
+              {{ scenes[currentScene].id === 'reverse' ? '原文 · 大白话' : '原文 · 话术版' }}
+            </text>
+          </view>
+          <text class="result-original">{{ inputText }}</text>
+        </view>
+
+        <!-- 人话翻译 -->
+        <view class="result-section result-section--green-bg">
+          <view class="result-label">
+            <view class="dot dot--green" />
+            <text class="result-label-text result-label-text--green">
+              {{ scenes[currentScene].id === 'reverse' ? '上妆 · 高大上版' : '人话 · 真实含义' }}
+            </text>
+          </view>
+          <text class="result-human">{{ result.humanText }}</text>
+        </view>
+
+        <!-- 逐句拆解 -->
+        <view class="result-section">
+          <view class="result-label">
+            <text class="result-label-text result-label-text--gray">🔬 逐句拆解</text>
+          </view>
+          <view
+            v-for="(item, idx) in result.breakdown"
+            :key="idx"
+            class="breakdown-row"
+            :class="{ 'breakdown-row--border': idx > 0 }"
+          >
+            <text class="breakdown-from">{{ item.from }}</text>
+            <text class="breakdown-arrow">→</text>
+            <text class="breakdown-to">{{ item.to }}</text>
+          </view>
+        </view>
+
+        <!-- 操作按钮 -->
+        <view class="action-bar">
+          <view class="action-btn" @tap="handleShare">📤 分享</view>
+          <view class="action-btn" @tap="handleCopy">📋 复制</view>
+          <view class="action-btn action-btn--primary" @tap="handleReset">再译一条</view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup lang="ts">
-import { copySkill as copySkillApi, getSkillDetail, getSkillList } from '@/api/skill'
-import FeedPost from '@/components/feed-post/index.vue'
-import SkillFeed from '@/components/skill-feed/index.vue'
-import { useGuideStore, useUserStore } from '@/stores'
-import { requireLogin } from '@/utils/auth-guard'
-import { getCurrentInstance } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 
-const instance = getCurrentInstance()
-const guideStore = useGuideStore()
-const userStore = useUserStore()
-
-const FEED_POST_PUBLISHED_KEY = 'feed_post_published_v1'
-const ONBOARDING_DELAY_MS = 1200
-const NEWBIE_PAGE_SIZE = 8
-
-const feedRef = ref<InstanceType<typeof FeedPost> | null>(null)
-
-const activeTab = ref(0)
-const feedTabs = ['消耗', 'Skill']
-
-const showSloganBanner = ref(false)
-const showOnboarding = ref(false)
-const onboardingStep = ref(1)
-const newbieLoading = ref(false)
-const newbieSkills = ref<Array<{
-  id: string
-  title: string
-  scene: string
-  copyFallback: string
-  copyCount: number
-  copyCountText: string
-}>>([])
-
-let onboardingTimer: ReturnType<typeof setTimeout> | null = null
-
-const onboardingSlides = [
-  {
-    gradient: 'linear-gradient(135deg, #FF8C5A 0%, #E45C1A 100%)',
-    icon: 'fire-filled',
-    title: 'Token 烧多了？\n来这里说',
-    desc: '围观大佬用 AI 做了什么牛逼项目，花了多少 Token——也有人烧钱翻车，点「我也是」找组织。',
-    pill: '点「我也是」找到同款受害者',
-  },
-  {
-    gradient: 'linear-gradient(135deg, #7C7CE8 0%, #5B5BD6 100%)',
-    icon: 'star-filled',
-    title: '别人调好的 AI 指令\n直接抄走',
-    desc: '一键复制高性价比 Prompt，不用从头摸索——改 2 个词就能用，省 Token 也省命。',
-    pill: 'Skill 广场 · 高性价比提示词库',
-  },
-  {
-    gradient: 'linear-gradient(135deg, #5B5BD6 0%, #FF7A45 100%)',
-    icon: 'compose',
-    title: '先做哪件事？',
-    desc: '两条路都能让你少烧冤枉 Token。',
-    pill: null,
-  },
+// --- 场景配置 ---
+const scenes = [
+  { id: 'work', icon: '💼', label: '职场黑话', placeholder: '例：我们需要拉齐认知颗粒度，赋能前线业务…' },
+  { id: 'agent', icon: '🏠', label: '中介话术', placeholder: '例：精装修拎包入住，采光好，业主诚心出售…' },
+  { id: 'date', icon: '💕', label: '相亲潜台词', placeholder: '例：我这个人比较简单，不太看重物质条件…' },
+  { id: 'client', icon: '🎨', label: '甲方需求', placeholder: '例：大气一点，高端一点，你先出几版看看…' },
+  { id: 'hr', icon: '📄', label: 'HR话术', placeholder: '例：弹性工作制，有竞争力的薪资，拥抱变化…' },
+  { id: 'reverse', icon: '✨', label: '反向上妆', placeholder: '例：这周啥也没干，就开了几个会…' }
 ]
 
-const currentSlide = computed(() => onboardingSlides[Math.max(onboardingStep.value - 1, 0)] || onboardingSlides[0])
-const isLastSlide = computed(() => onboardingStep.value >= onboardingSlides.length)
+// --- 场景 prompt ---
+const scenePrompts: Record<string, string> = {
+  work: `你是一个毒舌翻译官，专门翻译职场黑话。用户会给你一段职场话术，你要：
+1. 把它翻译成大白话（要有幽默感和毒舌感）
+2. 给出妆感浓度评分（0-100，纯黑话90+，半黑话60-80，基本说人话30以下）
+3. 给出诊断词（重度浓妆/中度美颜/轻度滤镜/素颜/整容级）
+4. 逐句拆解每个术语的真实含义
+严格返回JSON格式：{"humanText":"翻译后的大白话","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文术语","to":"大白话含义"}]}`,
 
-const normalizePlainText = (value: unknown) => `${value ?? ''}`
-  .replace(/<[^>]*>/g, ' ')
-  .replace(/\s+/g, ' ')
-  .trim()
+  agent: `你是一个毒舌翻译官，专门翻译中介话术。用户会给你一段中介/销售话术，你要翻译成大白话，揭露真相。
+评分标准：夸大其词90+，小幅美化60-80，基本属实30以下。
+严格返回JSON格式：{"humanText":"翻译后的大白话","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文术语","to":"大白话含义"}]}`,
 
-const mapNewbieSkill = (item: any) => {
-  const title = `${item?.title || '未命名 Skill'}`
-  const copyCount = Math.max(0, Number(item?.copyCount ?? item?.stats?.copyCount ?? 0))
-  const copyFallback = normalizePlainText(
-    item?.promptPreview ?? item?.summary ?? item?.brief ?? title
-  )
+  date: `你是一个毒舌翻译官，专门翻译相亲中的潜台词。用户会给你一段相亲对话，你要翻译出真实含义。
+评分标准：深度包装90+，轻度修饰60-80，比较真诚30以下。
+严格返回JSON格式：{"humanText":"翻译后的大白话","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文术语","to":"大白话含义"}]}`,
 
-  return {
-    id: `${item?.id || ''}`,
-    title,
-    scene: `${item?.scene || '其他'}`,
-    copyFallback,
-    copyCount,
-    copyCountText: copyCount > 0 ? `${copyCount} 人复制` : '可直接复用',
-  }
+  client: `你是一个毒舌翻译官，专门翻译甲方的模糊需求。用户会给你一段甲方说的话，你要翻译成真实需求。
+评分标准：完全说不清90+，半懂不懂60-80，需求还算清晰30以下。
+严格返回JSON格式：{"humanText":"翻译后的大白话","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文术语","to":"大白话含义"}]}`,
+
+  hr: `你是一个毒舌翻译官，专门翻译HR的招聘话术和职场套话。用户会给你一段HR说的话，你要翻译成真实含义。
+评分标准：深度话术90+，常规美化60-80，比较实诚30以下。
+严格返回JSON格式：{"humanText":"翻译后的大白话","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文术语","to":"大白话含义"}]}`,
+
+  reverse: `你是一个专业的"上妆师"，专门把大白话包装成高大上的话术。用户会给你一段大白话，你要：
+1. 把它包装成高大上的职场话术版本
+2. 给出上妆浓度评分（你包装后有多浮夸，0-100）
+3. 给出诊断词
+4. 逐句对应拆解
+严格返回JSON格式：{"humanText":"包装后的高大上版本","score":87,"verdict":"重度浓妆","breakdown":[{"from":"原文大白话","to":"包装后的话术"}]}`
 }
 
-const loadNewbieSkills = async () => {
-  newbieLoading.value = true
-  try {
-    const data = await getSkillList({
-      page: 1,
-      pageSize: NEWBIE_PAGE_SIZE,
-      sort: 'mostCopy'
-    })
-    const list = Array.isArray(data?.list) ? data.list.map(mapNewbieSkill) : []
-    newbieSkills.value = list
-      .filter(item => item.id)
-      .slice(0, 2)
-  } catch {
-    newbieSkills.value = []
-  } finally {
-    newbieLoading.value = false
-  }
-}
+// --- 状态 ---
+const currentScene = ref(0)
+const inputText = ref('')
+const isFocused = ref(false)
+const isLoading = ref(false)
+const result = ref<{
+  humanText: string
+  score: number
+  verdict: string
+  breakdown: { from: string; to: string }[]
+} | null>(null)
+const showResult = ref(false)
+const animatedScore = ref(0)
 
-const clearOnboardingTimer = () => {
-  if (!onboardingTimer) return
-  clearTimeout(onboardingTimer)
-  onboardingTimer = null
-}
+const loadingLayers = computed(() => Math.max(3, Math.floor(inputText.value.length / 10)))
 
-const scheduleGuideLayers = () => {
-  clearOnboardingTimer()
-  if (guideStore.canShowOnboarding()) {
-    onboardingTimer = setTimeout(() => {
-      guideStore.requestLayer('onboarding')
-    }, ONBOARDING_DELAY_MS)
-    return
-  }
-
-  if (guideStore.onboardingDone && guideStore.canShowBanner()) {
-    guideStore.requestLayer('banner')
-  }
-}
-
-const dismissSloganBanner = () => {
-  guideStore.markBannerDismissed()
-  guideStore.releaseLayer('banner')
-}
-
-const nextOnboarding = () => {
-  if (isLastSlide.value) return
-  onboardingStep.value += 1
-}
-
-const skipOnboarding = () => {
-  guideStore.markOnboardingSkipped()
-  guideStore.releaseLayer('onboarding')
-}
-
-const finishOnboarding = (target: 'consume' | 'skill') => {
-  guideStore.markOnboardingDone()
-  guideStore.releaseLayer('onboarding')
-
-  if (target === 'skill') {
-    activeTab.value = 1
-  } else {
-    activeTab.value = 0
-  }
-}
-
-const enterSkillTab = () => {
-  activeTab.value = 1
-}
-
-const toSkillDetail = (id: string) => {
-  if (!id) return
-  uni.navigateTo({ url: `/pages/detail/skill?id=${id}` })
-}
-
-const copyNewbieSkill = async (skill: {
-  id: string
-  title: string
-  copyFallback: string
-}) => {
-  if (!requireLogin(userStore.token, '复制 Skill')) return
-  if (!skill?.id) return
-
-  let copyText = ''
-  try {
-    const detail = await getSkillDetail(skill.id)
-    copyText = normalizePlainText(detail?.content?.fullPrompt)
-  } catch { }
-
-  if (!copyText) {
-    copyText = normalizePlainText(skill.copyFallback || skill.title)
-  }
-  if (!copyText) {
-    uni.showToast({ title: '暂无可复制内容', icon: 'none' })
-    return
-  }
-
-  const copied = await new Promise<boolean>((resolve) => {
-    uni.setClipboardData({
-      data: copyText,
-      showToast: false,
-      success: () => resolve(true),
-      fail: () => resolve(false),
-    })
+// --- 粘贴 ---
+function handlePaste() {
+  uni.getClipboardData({
+    success: (res) => {
+      if (res.data) {
+        inputText.value = res.data.slice(0, 500)
+      }
+    }
   })
-  if (!copied) {
-    uni.showToast({ title: '复制失败', icon: 'none' })
-    return
-  }
+}
+
+// --- 翻译 ---
+async function handleTranslate() {
+  if (!inputText.value.trim() || isLoading.value) return
+
+  isLoading.value = true
+  result.value = null
+  showResult.value = false
+  animatedScore.value = 0
+
+  const sceneId = scenes[currentScene.value].id
 
   try {
-    await copySkillApi(skill.id, { sourceChannel: 'home_consume' })
+    const res = await wx.cloud.callFunction({
+      name: 'translate',
+      data: {
+        text: inputText.value,
+        sceneId,
+        systemPrompt: scenePrompts[sceneId]
+      }
+    }) as any
+
+    const data = res.result
+
+    if (data && data.humanText) {
+      result.value = {
+        humanText: data.humanText,
+        score: Math.min(100, Math.max(0, Number(data.score) || 50)),
+        verdict: data.verdict || '未知浓度',
+        breakdown: Array.isArray(data.breakdown) ? data.breakdown : []
+      }
+
+      await nextTick()
+      showResult.value = true
+
+      // 进度条动画
+      setTimeout(() => {
+        animatedScore.value = result.value!.score
+      }, 100)
+    } else {
+      uni.showToast({ title: '翻译失败，请重试', icon: 'none' })
+    }
   } catch {
-    // ignore API record failure in UI action
+    uni.showToast({ title: '网络异常，请重试', icon: 'none' })
+  } finally {
+    isLoading.value = false
   }
-
-  guideStore.markFirstSkillCopy()
-  uni.showToast({ title: '已复制 Skill', icon: 'success' })
 }
 
-const switchTab = (i: number) => { activeTab.value = i }
-const onSwiperChange = (e: any) => { activeTab.value = e.detail.current }
-const toCreateRecord = () => uni.navigateTo({ url: '/pages/publish/record' })
-const onSkillEdgeSwipe = (dir: 'left' | 'right') => {
-  if (dir === 'left') activeTab.value = Math.min(feedTabs.length - 1, activeTab.value + 1)
-  else activeTab.value = Math.max(0, activeTab.value - 1)
+// --- 复制 ---
+function handleCopy() {
+  if (!result.value) return
+  const text = `【人话翻译机】\n原文：${inputText.value}\n人话：${result.value.humanText}\n妆感浓度：${result.value.score}%`
+  uni.setClipboardData({
+    data: text,
+    success: () => uni.showToast({ title: '已复制', icon: 'success' })
+  })
 }
 
-watch(() => guideStore.activeLayer, (layer) => {
-  showSloganBanner.value = layer === 'banner'
-  showOnboarding.value = layer === 'onboarding'
-  if (showOnboarding.value) onboardingStep.value = 1
-}, { immediate: true })
+// --- 分享 ---
+function handleShare() {
+  uni.showToast({ title: '请点击右上角分享', icon: 'none' })
+}
 
-onShow(() => {
-  // #ifdef MP-WEIXIN
-  ;(uni as any).getTabBar(instance?.proxy)?.setData({ selected: 0 })
-  // #endif
+// --- 再译一条 ---
+function handleReset() {
+  inputText.value = ''
+  result.value = null
+  showResult.value = false
+  animatedScore.value = 0
+  uni.pageScrollTo({ scrollTop: 0, duration: 300 })
+}
 
-  const published = uni.getStorageSync(FEED_POST_PUBLISHED_KEY)
-  if (published?.id && typeof feedRef.value?.refresh === 'function') {
-    feedRef.value.refresh()
-    uni.removeStorageSync(FEED_POST_PUBLISHED_KEY)
+// --- 小程序分享 ---
+onShareAppMessage(() => {
+  const score = result.value?.score ?? 0
+  return {
+    title: `这段话的妆感浓度居然有${score}%！`,
+    path: '/pages/index/index'
   }
-
-  if (!newbieSkills.value.length && !newbieLoading.value) {
-    void loadNewbieSkills()
-  }
-
-  scheduleGuideLayers()
-})
-
-onHide(() => {
-  clearOnboardingTimer()
-
-  if (guideStore.activeLayer === 'banner') {
-    guideStore.cancelLayer('banner')
-  }
-  if (guideStore.activeLayer === 'onboarding') {
-    guideStore.cancelLayer('onboarding')
-  }
-})
-
-onUnload(() => {
-  clearOnboardingTimer()
 })
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
+// 设计 token
+$bg: #0a0a0f;
+$card: #13131a;
+$border: #2a2a3a;
+$text: #e8e8f0;
+$text-secondary: #6a6a80;
+$text-weak: #4a4a5e;
+$red: #ff4d4d;
+$orange: #ff9100;
+$green: #00e676;
+$radius-lg: 28rpx;
+$radius-sm: 20rpx;
+$radius-pill: 40rpx;
+
 .page {
-  height: 100%;
-  background: var(--bg-secondary);
-  display: flex;
-  flex-direction: column;
-}
-
-/* ── Header ── */
-.header {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding-top: 0;
-  background: var(--card-bg);
-  border-bottom: 1rpx solid rgba(0, 0, 0, 0.06);
-  flex-shrink: 0;
-}
-
-/* #ifdef H5 */
-.header {
-  padding-top: var(--h5-safe-area-inset-top, 0px);
-}
-/* #endif */
-
-/* #ifndef H5 */
-.header {
-  padding-top: constant(safe-area-inset-top);
-  padding-top: env(safe-area-inset-top);
-}
-/* #endif */
-
-.tab-strip {
+  min-height: 100vh;
+  background: $bg;
+  padding: 0 0 80rpx;
   position: relative;
-  display: flex;
-  padding-bottom: 2rpx;
-
-  .tab-item {
-    width: 148rpx;
-    display: flex;
-    justify-content: center;
-    padding: 24rpx 0 18rpx;
-
-    .tab-text {
-      font-size: 28rpx;
-      color: var(--text-muted);
-      font-weight: 500;
-      transition: color 0.2s;
-    }
-
-    &.active .tab-text {
-      color: var(--text-primary);
-      font-weight: 700;
-      font-size: 30rpx;
-    }
-  }
-
-  .tab-ind-wrap {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 148rpx;
-    display: flex;
-    justify-content: center;
-    transition: transform 0.28s cubic-bezier(0.34, 1.2, 0.64, 1);
-
-    .tab-ind-bar {
-      width: 36rpx;
-      height: 4rpx;
-      background: var(--accent-color);
-      border-radius: 2rpx;
-    }
-  }
+  overflow: hidden;
 }
 
-.slogan-banner {
+// --- 光晕 ---
+.glow-bg {
+  position: absolute;
+  top: -60rpx;
+  left: -60rpx;
+  width: 260rpx;
+  height: 260rpx;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba($red, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+// --- 品牌区 ---
+.brand {
+  padding: 100rpx 40rpx 0;
+}
+.brand-row {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  padding: 14rpx 20rpx;
-  background: rgba(91, 91, 214, 0.07);
-  border-bottom: 1rpx solid rgba(91, 91, 214, 0.15);
-
-  .sb-main {
-    min-width: 0;
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 10rpx;
-  }
-
-  .sb-text {
-    min-width: 0;
-    flex: 1;
-    font-size: 24rpx;
-    color: rgba(26, 26, 26, 0.8);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .sb-actions {
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-  }
-
-  .sb-close {
-    width: 36rpx;
-    height: 36rpx;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.06);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
 }
-
-.newbie-home-block {
-  margin: 14rpx 20rpx 0;
-  padding: 16rpx;
+.brand-logo {
+  width: 72rpx;
+  height: 72rpx;
   border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1rpx solid rgba(0, 0, 0, 0.06);
+  background: linear-gradient(135deg, $red, $orange);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+}
+.brand-name {
+  font-size: 40rpx;
+  font-weight: 900;
+  background: linear-gradient(90deg, $red, $orange);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.brand-slogan {
+  display: block;
+  font-size: 24rpx;
+  color: $text-secondary;
+  margin-top: 8rpx;
+  padding-left: 88rpx;
 }
 
-.nh-head {
+// --- 场景选择 ---
+.scene-bar {
+  white-space: nowrap;
+  margin-top: 36rpx;
+  padding: 0 40rpx;
+}
+.scene-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 16rpx 28rpx;
+  margin-right: 16rpx;
+  border-radius: $radius-pill;
+  background: $card;
+  border: 2rpx solid $border;
+  font-size: 26rpx;
+  color: $text-secondary;
+}
+.scene-pill--active {
+  background: rgba($red, 0.12);
+  border-color: $red;
+  color: $red;
+  font-weight: 600;
+}
+.scene-pill--green {
+  background: rgba($green, 0.10);
+  border-color: $green;
+  color: $green;
+}
+
+// --- 输入区 ---
+.input-card {
+  margin: 28rpx 40rpx 0;
+  background: $card;
+  border: 2rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 28rpx 32rpx;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.input-card--focus {
+  border-color: $red;
+  box-shadow: 0 0 6rpx rgba($red, 0.3);
+}
+.input-textarea {
+  width: 100%;
+  min-height: 160rpx;
+  font-size: 30rpx;
+  line-height: 1.7;
+  color: $text;
+  background: transparent;
+}
+.input-placeholder {
+  color: $text-weak;
+}
+.input-divider {
+  height: 1px;
+  background: $border;
+  margin: 20rpx 0;
+}
+.input-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8rpx;
 }
-
-.nh-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-
-.nh-title {
-  font-size: 24rpx;
-  color: var(--text-primary);
-  font-weight: 700;
-}
-
-.nh-more {
+.input-count {
   font-size: 22rpx;
-  color: var(--primary-color);
-  font-weight: 700;
+  color: $text-weak;
 }
-
-.nh-sub {
-  display: block;
-  margin-bottom: 12rpx;
-  font-size: 21rpx;
-  color: var(--text-muted);
-}
-
-.nh-loading {
-  height: 88rpx;
-  border-radius: 14rpx;
-  background: rgba(0, 0, 0, 0.03);
+.input-btns {
   display: flex;
   align-items: center;
+  gap: 16rpx;
+}
+.btn-paste {
+  font-size: 24rpx;
+  color: $text-secondary;
+  padding: 10rpx 20rpx;
+}
+.btn-translate {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(90deg, $red, $orange);
+  padding: 16rpx 32rpx;
+  border-radius: $radius-pill;
+  box-shadow: 0 4rpx 16rpx rgba($red, 0.35);
+}
+.btn-translate--disabled {
+  opacity: 0.4;
+}
+.btn-translate--green {
+  background: linear-gradient(90deg, #00c853, $green);
+  box-shadow: 0 4rpx 16rpx rgba($green, 0.35);
+}
+
+// --- 加载态 ---
+.loading {
+  text-align: center;
+  margin-top: 48rpx;
+}
+.loading-main {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: $red;
+  animation: breath 1.4s ease-in-out infinite;
+}
+.loading-sub {
+  display: block;
+  font-size: 24rpx;
+  color: $text-secondary;
+  margin-top: 12rpx;
+}
+@keyframes breath {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+// --- 结果区 ---
+.result {
+  margin: 36rpx 40rpx 0;
+  opacity: 0;
+  transform: translateY(18rpx);
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+.result--show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+// 妆感浓度仪表
+.meter-card {
+  display: flex;
+  align-items: center;
+  background: $card;
+  border: 2rpx solid $border;
+  border-radius: $radius-lg;
+  padding: 32rpx 36rpx;
+  margin-bottom: 24rpx;
+}
+.meter-left {
+  flex: 1;
+  margin-right: 32rpx;
+}
+.meter-label {
+  font-size: 22rpx;
+  color: $text-secondary;
+}
+.meter-track {
+  height: 12rpx;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6rpx;
+  margin-top: 16rpx;
+  overflow: hidden;
+}
+.meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, $red, $orange);
+  border-radius: 6rpx;
+  box-shadow: 0 0 8rpx rgba($red, 0.5);
+  transition: width 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.meter-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10rpx;
+}
+.meter-scale-item {
+  font-size: 18rpx;
+  color: $text-weak;
+}
+.meter-right {
+  text-align: center;
+}
+.meter-score-row {
+  display: flex;
+  align-items: flex-end;
   justify-content: center;
 }
-
-.nh-loading-text {
+.meter-score {
+  font-size: 72rpx;
+  font-weight: 900;
+  background: linear-gradient(180deg, $red, $orange);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1;
+}
+.meter-percent {
+  font-size: 28rpx;
+  color: $text-secondary;
+  margin-bottom: 8rpx;
+}
+.meter-verdict {
   font-size: 22rpx;
-  color: var(--text-muted);
+  color: $red;
+  font-weight: 600;
+  margin-top: 8rpx;
 }
 
-.nh-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
+// 翻译结果卡片
+.result-card {
+  background: $card;
+  border: 2rpx solid $border;
+  border-radius: $radius-lg;
+  overflow: hidden;
 }
-
-.nh-item {
+.result-section {
+  padding: 32rpx 36rpx;
+  border-top: 2rpx solid $border;
+  &:first-child {
+    border-top: none;
+  }
+}
+.result-section--green-bg {
+  background: rgba($green, 0.03);
+}
+.result-label {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  padding: 12rpx 14rpx;
-  border-radius: 12rpx;
-  border: 1rpx solid rgba(0, 0, 0, 0.06);
-  background: var(--card-bg);
+  margin-bottom: 16rpx;
 }
-
-.nh-item-main {
-  min-width: 0;
-  flex: 1;
+.dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
 }
-
-.nh-item-title {
-  display: block;
-  font-size: 24rpx;
-  color: var(--text-primary);
-  font-weight: 700;
-  line-height: 1.4;
+.dot--red {
+  background: $red;
 }
-
-.nh-item-meta {
-  margin-top: 6rpx;
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
+.dot--green {
+  background: $green;
 }
-
-.nh-scene {
-  max-width: 140rpx;
-  padding: 4rpx 10rpx;
-  border-radius: 999rpx;
-  font-size: 19rpx;
-  color: var(--orange-color);
-  background: rgba(228, 92, 26, 0.1);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.nh-copy-count {
+.result-label-text {
   font-size: 20rpx;
-  color: var(--text-muted);
+}
+.result-label-text--red {
+  color: $red;
+}
+.result-label-text--green {
+  color: $green;
+}
+.result-label-text--gray {
+  color: $text-secondary;
+}
+.result-original {
+  font-size: 26rpx;
+  color: $text-secondary;
+  text-decoration: line-through;
+  text-decoration-color: rgba($red, 0.25);
+  line-height: 1.7;
+}
+.result-human {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: $text;
+  line-height: 1.7;
 }
 
-.nh-copy-btn {
-  width: 88rpx;
-  height: 52rpx;
-  border-radius: 10rpx;
-  background: rgba(91, 91, 214, 0.12);
-  border: 1rpx solid rgba(91, 91, 214, 0.2);
+// 逐句拆解
+.breakdown-row {
   display: flex;
   align-items: center;
-  justify-content: center;
+  padding: 16rpx 0;
+}
+.breakdown-row--border {
+  border-top: 2rpx solid rgba(255, 255, 255, 0.03);
+}
+.breakdown-from {
+  font-size: 26rpx;
+  color: $text-secondary;
+  text-decoration: line-through;
+  flex-shrink: 0;
+  max-width: 40%;
+}
+.breakdown-arrow {
+  font-size: 24rpx;
+  color: $text-weak;
+  margin: 0 16rpx;
   flex-shrink: 0;
 }
-
-.nh-copy-text {
-  font-size: 21rpx;
-  color: var(--primary-color);
-  font-weight: 700;
-}
-
-.nh-empty {
-  height: 78rpx;
-  border-radius: 12rpx;
-  background: rgba(0, 0, 0, 0.03);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.nh-empty-text {
-  font-size: 21rpx;
-  color: var(--text-muted);
-}
-
-/* ── FAB ── */
-.fab {
-  position: fixed;
-  right: 40rpx;
-  bottom: calc(130rpx + env(safe-area-inset-bottom));
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 50%;
-  background: var(--accent-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8rpx 28rpx rgba(255, 122, 69, 0.45);
-  z-index: 100;
-
-  &:active {
-    opacity: 0.85;
-  }
-}
-
-/* ── Swiper ── */
-.tab-swiper {
-  flex: 1;
-  height: 0;
-}
-
-.tab-pane {
-  height: 100%;
-}
-
-.onboarding-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.45);
-  z-index: 1300;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32rpx;
-}
-
-.onboarding-panel {
-  width: 100%;
-  max-width: 680rpx;
-  background: var(--card-bg);
-  border-radius: 28rpx;
-  padding: 30rpx;
-  box-shadow: 0 24rpx 60rpx rgba(0, 0, 0, 0.2);
-}
-
-.ob-head {
-  display: flex;
-  align-items: center;
-}
-
-.ob-step {
-  font-size: 20rpx;
-  font-weight: 700;
-  color: var(--text-muted);
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 999rpx;
-  padding: 6rpx 18rpx;
-}
-
-.ob-close {
-  margin-left: auto;
-  width: 52rpx;
-  height: 52rpx;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ob-icon-wrap {
-  width: 128rpx;
-  height: 128rpx;
-  border-radius: 36rpx;
-  margin: 22rpx auto 26rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 16rpx 44rpx rgba(0, 0, 0, 0.22);
-}
-
-.ob-title {
-  display: block;
-  text-align: center;
-  font-size: 40rpx;
-  font-weight: 800;
-  color: var(--text-primary);
-  white-space: pre-line;
-  line-height: 1.35;
-  letter-spacing: -0.5rpx;
-}
-
-.ob-desc {
-  display: block;
-  margin-top: 20rpx;
-  text-align: center;
-  font-size: 27rpx;
-  line-height: 1.7;
-  color: #4B5563;
-  padding: 0 8rpx;
-}
-
-.ob-pill {
-  margin-top: 22rpx;
-  display: flex;
-  justify-content: center;
-}
-
-.ob-pill-t {
-  font-size: 23rpx;
+.breakdown-to {
+  font-size: 26rpx;
+  color: $green;
   font-weight: 600;
-  color: var(--primary-color);
-  background: rgba(91, 91, 214, 0.09);
-  border: 1rpx solid rgba(91, 91, 214, 0.2);
-  border-radius: 999rpx;
-  padding: 10rpx 26rpx;
+  flex: 1;
 }
 
-.ob-points {
+// 操作按钮
+.action-bar {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10rpx;
-  margin: 30rpx 0 24rpx;
+  gap: 20rpx;
+  padding: 28rpx 36rpx;
+  border-top: 2rpx solid $border;
 }
-
-.ob-point {
-  width: 12rpx;
-  height: 12rpx;
-  border-radius: 6rpx;
-  background: rgba(0, 0, 0, 0.12);
-  transition: all 0.28s cubic-bezier(0.34, 1.2, 0.64, 1);
-
-  &.on {
-    width: 32rpx;
-    border-radius: 6rpx;
-    background: var(--primary-color);
-  }
+.action-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 26rpx;
+  color: $text-secondary;
+  background: #1a1a24;
+  border: 2rpx solid $border;
+  border-radius: $radius-sm;
+  padding: 22rpx 0;
 }
-
-.ob-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 14rpx;
-}
-
-.ob-btn {
-  height: 92rpx;
-  border-radius: 20rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.ob-btn-primary {
-  background: var(--primary-color);
-  box-shadow: 0 8rpx 24rpx rgba(91, 91, 214, 0.32);
-}
-
-.ob-btn-ghost {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-.ob-btn-text {
-  font-size: 30rpx;
-  color: #ffffff;
-  font-weight: 700;
-  letter-spacing: 0.5rpx;
-
-  &.ghost {
-    color: var(--text-gray);
-  }
-}
-
-.line-1 {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-@media screen and (min-width: 768px) {
-  .newbie-home-block {
-    margin: 10px 16px 0;
-    padding: 12px;
-  }
-
-  .nh-title {
-    font-size: 13px;
-  }
-
-  .nh-more {
-    font-size: 12px;
-  }
-
-  .nh-item-title {
-    font-size: 14px;
-  }
-
-  .nh-copy-count,
-  .nh-scene {
-    font-size: 12px;
-  }
-
-  .slogan-banner {
-    padding: 10px 16px;
-
-    .sb-text {
-      font-size: 13px;
-    }
-  }
-
-  .onboarding-panel {
-    max-width: 420px;
-    padding: 20px;
-  }
-
-  .ob-icon-wrap {
-    width: 76px;
-    height: 76px;
-    border-radius: 20px;
-    margin: 14px auto 18px;
-  }
-
-  .ob-title {
-    font-size: 22px;
-    letter-spacing: -0.2px;
-  }
-
-  .ob-desc {
-    font-size: 14px;
-    margin-top: 12px;
-  }
-
-  .ob-pill-t {
-    font-size: 12px;
-    padding: 5px 14px;
-  }
-
-  .ob-btn {
-    height: 52px;
-    border-radius: 12px;
-  }
-
-  .ob-btn-text {
-    font-size: 15px;
-  }
+.action-btn--primary {
+  color: #fff;
+  background: linear-gradient(90deg, $red, $orange);
+  border: none;
+  box-shadow: 0 4rpx 16rpx rgba($red, 0.35);
 }
 </style>

@@ -4,163 +4,17 @@
 			"path": "pages/index/index",
 			"style": {
 				"navigationStyle": "custom",
-				"enablePullDownRefresh": false
-			}
-		},
-		{
-			"path": "pages/community/index",
-			"style": {
-				"navigationBarTitleText": "趋势",
-				"navigationBarBackgroundColor": "#FFFFFF",
-				"navigationBarTextStyle": "black",
-				"enablePullDownRefresh": false
-			}
-		},
-		{
-			"path": "pages/publish/index",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/skill/index",
-			"style": {
-				"navigationBarTitleText": "Skill",
-				"navigationBarBackgroundColor": "#FFFFFF",
-				"navigationBarTextStyle": "black",
-				"enablePullDownRefresh": false
-			}
-		},
-		{
-			"path": "pages/my/my",
-			"style": {
-				"navigationStyle": "custom",
-				"enablePullDownRefresh": false
-			}
-		},
-		{
-			"path": "pages/my/data",
-			"style": {
-				"navigationStyle": "custom",
-				"enablePullDownRefresh": false
-			}
-		},
-		{
-			"path": "pages/detail/post",
-			"style": {
-				"navigationBarTitleText": "",
-				"navigationBarBackgroundColor": "#FFFFFF",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/detail/skill",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/author/index",
-			"style": {
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/search/index",
-			"style": {
-				"navigationBarTitleText": "搜索",
-				"navigationBarBackgroundColor": "#FFFFFF",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/login/index",
-			"style": {
-        "navigationStyle": "custom",
-				"navigationBarTitleText": "登录",
-				"navigationBarBackgroundColor": "#FFFFFF",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/agreement/index",
-			"style": {
-				"navigationBarTitleText": "用户协议",
-				"navigationBarBackgroundColor": "#FFFFFF",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/privacy/index",
-			"style": {
-				"navigationBarTitleText": "隐私政策",
-				"navigationBarBackgroundColor": "#FFFFFF",
-				"navigationBarTextStyle": "black"
-			}
-		},
-		{
-			"path": "pages/feedback/index",
-			"style": {
-				"navigationStyle": "custom",
-				"enablePullDownRefresh": false
-			}
-		},
-		{
-			"path": "pages/publish/record",
-			"style": {
-				"navigationStyle": "custom"
+				"enablePullDownRefresh": false,
+				"backgroundColor": "#0a0a0f",
+				"backgroundColorTop": "#0a0a0f",
+				"backgroundColorBottom": "#0a0a0f"
 			}
 		}
 	],
-	"easycom": {
-		"autoscan": true,
-		"custom": {
-			"^uni-(.*)": "@dcloudio/uni-ui/lib/uni-$1/uni-$1.vue",
-			"^sar-(.*)": "sard-uniapp/components/$1/$1.vue",
-			"^tab-bar$": "@/components/tab-bar/index.vue"
-		}
-	},
 	"globalStyle": {
-		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "烧不起",
-		"navigationBarBackgroundColor": "#FFFFFF",
-		"backgroundColor": "#FFFFFF",
-		"app-plus": {
-			"background": "#FFFFFF",
-			"scrollIndicator": "none",
-			"bounce": "none"
-		}
-	},
-	"tabBar": {
-		// #ifdef MP-WEIXIN
-		"custom": true,
-		// #endif
-		// #ifdef MP-QQ
-		"custom": true,
-		// #endif
-		"color": "#94979F",
-		"selectedColor": "#E45C1A",
-		"borderStyle": "white",
-		"backgroundColor": "#FFFFFF",
-		"list": [
-			{
-				"pagePath": "pages/index/index",
-				"iconPath": "static/tabbar/home.png",
-				"selectedIconPath": "static/tabbar/homeactive.png",
-				"text": "首页"
-			},
-			{
-				"pagePath": "pages/publish/index",
-				"iconPath": "static/tabbar/add.png",
-				"selectedIconPath": "static/tabbar/addactive.png",
-				"text": "发布"
-			},
-			{
-				"pagePath": "pages/my/my",
-				"iconPath": "static/tabbar/me.png",
-				"selectedIconPath": "static/tabbar/meactive.png",
-				"text": "我的"
-			}
-		]
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "人话翻译机",
+		"navigationBarBackgroundColor": "#0a0a0f",
+		"backgroundColor": "#0a0a0f"
 	}
 }

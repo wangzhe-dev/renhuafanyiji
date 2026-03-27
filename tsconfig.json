@@ -9,29 +9,15 @@
 		"esModuleInterop": true,
 		"sourceMap": true,
 		"skipLibCheck": true,
-		"importHelpers": true,
 		"allowSyntheticDefaultImports": true,
-		"useDefineForClassFields": true,
 		"resolveJsonModule": true,
 		"lib": ["esnext", "dom"],
-		"types": [
-			"vite/client",
-			"vite-plugin-pwa/client",
-			"@dcloudio/types",
-			"@uni-helper/uni-types",
-			"@uni-helper/uni-app-types",
-			"@uni-helper/uni-cloud-types",
-			"@uni-helper/uni-ui-types",
-			"sard-uniapp/global"
-		],
+		"types": ["@dcloudio/types"],
 		"baseUrl": ".",
 		"paths": {
 			"@/*": ["./src/*"]
-		},
-		"plugins": [{
-			"name": "typescript-plugin-css-modules"
-		}]
+		}
 	},
-	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue", "src/types/auto-imports.d.ts"],
-	"exclude": ["node_modules", "unpackage", "**/*.nvue"]
+	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue"],
+	"exclude": ["node_modules", "unpackage"]
 }

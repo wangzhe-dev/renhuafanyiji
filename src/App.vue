@@ -1,56 +1,17 @@
-<script>
-	import { useSysInfoStore } from '@/stores'
+<script setup lang="ts">
+import { onLaunch } from '@dcloudio/uni-app'
 
-	// #ifdef H5
-	// #endif
-
-	// #ifdef MP-WEIXIN
-	import { checkUpdate } from '@/utils/weixin'
-	// #endif
-
-	// #ifdef APP-PLUS
-	import { unregisterRequestPermissionTipsListener } from '@/uni_modules/uni-registerRequestPermissionTips'
-	import { checkAppUpdate } from '@/utils/app-update'
-	import { listenPermissionRequest } from '@/utils/app'
-	// #endif
-
-	export default {
-		// #ifdef H5
-		// #endif
-
-		onLaunch() {
-			useSysInfoStore().setSystemInfo()
-
-			// #ifdef APP-PLUS
-			listenPermissionRequest()
-			void checkAppUpdate()
-			// #endif
-		},
-
-		onShow() {
-			// #ifdef MP-WEIXIN
-			checkUpdate()
-			// #endif
-
-			// #ifdef APP-PLUS
-			void checkAppUpdate()
-			// #endif
-		},
-
-		onExit() {
-			// #ifdef APP-PLUS
-			// 取消注册权限监听事件
-			if (useSysInfoStore().systemInfo.osName === 'android') unregisterRequestPermissionTipsListener(null)
-			// #endif
-		}
-	}
+onLaunch(() => {
+  wx.cloud.init({
+    traceUser: true
+  })
+})
 </script>
 
 <style lang="scss">
-	@use 'sard-uniapp/index.scss' as *;
-	@use '@/static/css/flex.scss' as *;
-
-	/* #ifndef APP-NVUE */
-	@use '@/static/css/global.scss' as *;
-	/* #endif */
+page {
+  background-color: #0a0a0f;
+  color: #e8e8f0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
 </style>
