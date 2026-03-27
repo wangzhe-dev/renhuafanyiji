@@ -1,0 +1,37 @@
+{
+	"extends": "@vue/tsconfig/tsconfig.json",
+	"compilerOptions": {
+		"target": "esnext",
+		"module": "esnext",
+		"strict": true,
+		"jsx": "preserve",
+		"moduleResolution": "node",
+		"esModuleInterop": true,
+		"sourceMap": true,
+		"skipLibCheck": true,
+		"importHelpers": true,
+		"allowSyntheticDefaultImports": true,
+		"useDefineForClassFields": true,
+		"resolveJsonModule": true,
+		"lib": ["esnext", "dom"],
+		"types": [
+			"vite/client",
+			"vite-plugin-pwa/client",
+			"@dcloudio/types",
+			"@uni-helper/uni-types",
+			"@uni-helper/uni-app-types",
+			"@uni-helper/uni-cloud-types",
+			"@uni-helper/uni-ui-types",
+			"sard-uniapp/global"
+		],
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./src/*"]
+		},
+		"plugins": [{
+			"name": "typescript-plugin-css-modules"
+		}]
+	},
+	"include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue", "src/types/auto-imports.d.ts"],
+	"exclude": ["node_modules", "unpackage", "**/*.nvue"]
+}

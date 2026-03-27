@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+	<head>
+		<meta charset="UTF-8" />
+		<title>烧不起</title>
+
+		<!-- PWA Meta Tags -->
+		<meta name="application-name" content="烧不起" />
+		<meta name="mobile-web-app-capable" content="yes" />
+		<meta name="theme-color" content="#5B5BD6" />
+		<meta name="description" content="工具 · 社区 · Skill 技能展示平台" />
+
+		<!-- iOS PWA 支持 -->
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+		<meta name="apple-mobile-web-app-title" content="烧不起" />
+		<link rel="apple-touch-icon" href="static/icons/apple-touch-icon.png" />
+
+		<!-- 标准图标 -->
+		<link rel="icon" type="image/png" sizes="96x96" href="static/icons/icon-96x96.png" />
+
+		<!-- PWA: 尽早捕获 beforeinstallprompt，防止 Vue 挂载前事件已触发被错过 -->
+		<script>
+			window.__pwa_deferred_prompt = null
+			window.addEventListener('beforeinstallprompt', function(e) {
+				e.preventDefault()
+				window.__pwa_deferred_prompt = e
+			})
+		</script>
+
+		<script>
+			var coverSupport = 'CSS' in window && typeof CSS.supports === 'function' && (CSS.supports('top: env(a)') || CSS.supports('top: constant(a)'))
+			document.write('<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0' + (coverSupport ? ', viewport-fit=cover' : '') + '" />')
+		</script>
+	</head>
+
+	<body>
+		<div id="app"></div>
+		<script type="module" src="/src/main.ts"></script>
+	</body>
+</html>

@@ -1,0 +1,9 @@
+node_modules
+.env
+server/.env
+
+dist
+server/dist
+certs/
+*.keystore
+*.jks

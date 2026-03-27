@@ -1,0 +1,409 @@
+:root, page {
+	width: 100%;
+	height: 100%;
+	background-color: var(--bg-color, #FFFFFF);
+	font-size: 28rpx;
+	color: var(--text-color, #1A1A1A);
+	font-family: 'PingFang SC', 'Hiragino Sans GB', 'Source Han Sans SC', 'Microsoft YaHei UI', sans-serif;
+
+	/* Design Tokens — 烧不起 白底极简主题 */
+	--bg-color: #FFFFFF;
+	--bg-secondary: #F7F8FA;
+	--card-bg: #FFFFFF;
+	--card-bg-hover: #F5F7FA;
+	--border-color: rgba(26, 26, 26, 0.08);
+	--border-color-light: rgba(26, 26, 26, 0.05);
+
+	--text-color: #1A1A1A;
+	--text-secondary: rgba(26, 26, 26, 0.68);
+	--text-tertiary: rgba(26, 26, 26, 0.45);
+
+	/* 主品牌色：紫蓝 */
+	--primary-color: #5B5BD6;
+	--primary-light: rgba(91, 91, 214, 0.08);
+	--primary-light-10: rgba(91, 91, 214, 0.1);
+	--primary-light-12: rgba(91, 91, 214, 0.12);
+	--primary-border: #DDD6FE;
+	--primary-bg: #F0F0FD;
+	--primary-shadow: rgba(91, 91, 214, 0.28);
+
+	/* 强调色：暖橙（角标/等级/徽章） */
+	--accent-color: #FF7A45;
+	--accent-light: rgba(255, 122, 69, 0.1);
+	--accent-border: rgba(255, 122, 69, 0.28);
+	--accent-bg: #FFF5F0;
+
+	/* 文字色 */
+	--text-primary: #1A1A2E;
+	--text-gray: #6B7280;
+	--text-muted: #9CA3AF;
+	--text-placeholder: #C8CBD4;
+
+	/* 功能色 */
+	--teal-color: #0B8B8C;
+	--teal-light: rgba(11, 139, 140, 0.12);
+
+	/* 品牌语义色 */
+	--orange-color: #E45C1A;
+	--orange-gradient: linear-gradient(135deg, #EF6C2D 0%, #D94B0E 100%);
+	--orange-glow: rgba(228, 92, 26, 0.22);
+	--yellow-color: #D6943A;
+	--blue-color: #5E738A;
+	--blue-gradient: linear-gradient(135deg, #70849A 0%, #4D6178 100%);
+	--green-color: #2F8A57;
+	--red-color: #C84634;
+
+	/* 通用边框/分隔线 */
+	--border-light: #E5E7EB;
+	--border-lighter: #D1D5DB;
+
+	/* 辅助文字色 */
+	--text-dark: #374151;
+	--text-body: #3C3C3C;
+
+	/* 兼容旧变量名 */
+	--brand-color: #E45C1A;
+	--brand-gradient: linear-gradient(135deg, #EF6C2D 0%, #D94B0E 100%);
+	--burn-color: #E45C1A;
+	--burn-gradient: linear-gradient(135deg, #EF6C2D 0%, #D94B0E 100%);
+	--success-color: #2F8A57;
+}
+
+/* ============================================================
+   H5 / PWA 专项适配
+   ============================================================ */
+/* #ifdef H5 */
+
+// 防止系统字体缩放比例破坏布局
+html {
+	-webkit-text-size-adjust: 100%;
+	text-size-adjust: 100%;
+}
+
+// H5 顶部安全区统一变量：
+// - 普通浏览器/微信内置浏览器：0（避免顶部异常留白）
+// - PWA standalone：使用真实刘海安全区
+:root {
+	--h5-safe-area-inset-top: 0px;
+}
+@media (display-mode: standalone) {
+	:root {
+		--h5-safe-area-inset-top: constant(safe-area-inset-top);
+		--h5-safe-area-inset-top: env(safe-area-inset-top);
+	}
+}
+
+// 保证 height:100% 链条在微信/Android WebView 中不断
+// 微信 X5 引擎不会自动把 html/body/#app 撑满，导致 scroll-view 高度塌陷
+html, body, #app {
+	height: 100%;
+}
+
+// uni-nav-bar 的 status-bar 空白修复
+// 在 H5 浏览器（微信/Safari）中，uni.getSystemInfoSync().statusBarHeight
+// 会返回非零值（微信工具栏高度等），导致 uni-nav-bar 顶部出现多余空白。
+// 浏览器本身已把 viewport 置于其 chrome 下方，不需要额外的 status bar 高度。
+.uni-status-bar {
+	height: var(--h5-safe-area-inset-top, 0px) !important;
+	min-height: var(--h5-safe-area-inset-top, 0px) !important;
+}
+
+// 自定义导航栏顶部安全区适配
+// H5 中 statusBarHeight 始终为 0，使用统一变量接管
+.navbar,
+.profile-header,
+.profile-hero {
+	// !important 覆盖 Vue :style 绑定的 paddingTop: 0px 内联样式
+	padding-top: var(--h5-safe-area-inset-top, 0px) !important;
+}
+
+// Tab-bar 底部占位：custom tab-bar 是 position:fixed，会遮挡 scroll 内容
+// 各 tab 页在 scroll-view 末尾插入此占位 view
+.tab-bar-placeholder {
+	height: calc(180rpx + constant(safe-area-inset-bottom));
+	height: calc(180rpx + env(safe-area-inset-bottom));
+	flex-shrink: 0;
+}
+
+// 去掉原生 tabBar 顶部分割线（uni-tabbar-border）
+.uni-tabbar,
+.uni-tabbar__content {
+	border-top: none !important;
+}
+
+.uni-tabbar {
+	box-shadow: 0 -8rpx 24rpx rgba(26, 26, 26, 0.06) !important;
+}
+
+.uni-tabbar__content {
+	box-shadow: none !important;
+}
+
+.uni-tabbar-border,
+.uni-tabbar__border {
+	display: none !important;
+	height: 0 !important;
+	border: 0 !important;
+	opacity: 0 !important;
+}
+
+// iOS 普通浏览器模式（含微信内置浏览器）tabbar 高度适配
+// 原问题：padding-bottom:0 移除了 home indicator 安全区（34px），
+// 导致图标/文字被 home indicator 遮挡，实际可见区域仅剩约 16px。
+// 修复：保留 env(safe-area-inset-bottom) padding，并同步修正 page-wrapper 高度。
+html.ios-browser,
+html.wechat-ios-browser {
+	.uni-tabbar-bottom .uni-tabbar {
+		height: var(--tab-bar-height, 50px) !important;
+		min-height: var(--tab-bar-height, 50px) !important;
+		padding-bottom: env(safe-area-inset-bottom) !important;
+	}
+
+	.uni-tabbar-bottom .uni-tabbar .uni-tabbar__bd {
+		height: var(--tab-bar-height, 50px) !important;
+	}
+
+	.uni-tabbar-bottom .uni-tabbar .uni-tabbar__icon {
+		margin-top: 3px !important;
+	}
+
+	.uni-tabbar-bottom .uni-tabbar .uni-tabbar__label {
+		margin-top: 2px !important;
+	}
+
+	.uni-tabbar ~ .uni-placeholder {
+		margin-bottom: 0 !important;
+	}
+
+	.uni-app--showtabbar uni-page-wrapper {
+		height: calc(100% - var(--tab-bar-height, 50px) - env(safe-area-inset-bottom)) !important;
+	}
+
+	.uni-app--showtabbar uni-page-wrapper::after {
+		height: calc(var(--tab-bar-height, 50px) + env(safe-area-inset-bottom)) !important;
+	}
+
+	.uni-app--showtabbar uni-page-head[uni-page-head-type='default'] ~ uni-page-wrapper {
+		height: calc(100% - 44px - var(--tab-bar-height, 50px) - env(safe-area-inset-bottom)) !important;
+	}
+}
+
+/* #endif */
+
+.container {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	position: relative;
+}
+
+view,
+scroll-view,
+swiper,
+button,
+uni-button,
+input,
+textarea,
+label,
+text,
+navigator,
+cover-view,
+cover-image,
+picker,
+picker-view,
+radio,
+radio-group,
+image {
+	box-sizing: border-box;
+}
+
+button, uni-button {
+	line-height: 1.5;
+	font-size: 28rpx;
+	background-color: transparent;
+	position: relative;
+}
+
+button::after, uni-button::after {
+	border: none !important;
+}
+
+// 按钮无法点击的背景色
+.btn-disable {
+	background: #BFC4CC !important;
+}
+
+.hover-opacity {
+	opacity: 0.5;
+	transition: opacity 0.2s ease-in-out;
+}
+
+/* input 样式 */
+.placeholder-class {
+	font-size: 26rpx;
+	color: #A7AFB8;
+}
+
+/* 隐藏scroll-view的滚动条 */
+::-webkit-scrollbar {
+	display: none;
+	width: 0 !important;  
+	height: 0 !important;  
+	-webkit-appearance: none;  
+	background: transparent;  
+}
+
+/* 文字避头尾法则 */
+.btw {
+	table-layout: fixed;
+	word-wrap: break-word;
+	word-break: normal;
+	text-align: justify;
+	text-justify: inter-ideograph;
+}
+
+.fw-bold {
+	font-weight: bold;
+}
+
+.bg-white {
+	background: #fff;
+}
+
+.hidden {
+	overflow: hidden;
+}
+
+.w100 {
+	width: 100%;
+}
+
+.h100 {
+	height: 100%;
+}
+
+.iphonex-m {
+	margin-bottom: constant(safe-area-inset-bottom);
+	margin-bottom: env(safe-area-inset-bottom);
+}
+
+.iphonex-p {
+	padding-bottom: constant(safe-area-inset-bottom);
+	padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Redesign Utility Classes */
+.glass-panel {
+	background: rgba(255, 255, 255, 0.85);
+	backdrop-filter: blur(20px);
+	-webkit-backdrop-filter: blur(20px);
+	border: 1rpx solid rgba(26, 26, 26, 0.08);
+	box-shadow: 0 8rpx 28rpx rgba(26, 26, 26, 0.08);
+}
+
+.text-gradient-brand {
+	background: var(--orange-gradient);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	color: transparent;
+}
+
+.text-gradient-burn {
+	background: var(--orange-gradient);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	color: transparent;
+}
+
+.card-shadow {
+	box-shadow: 0 4rpx 20rpx rgba(26, 26, 26, 0.08);
+	border-radius: 32rpx;
+	background: var(--card-bg);
+	border: 1rpx solid var(--border-color);
+}
+
+.token-highlight {
+	color: var(--orange-color);
+	font-weight: 600;
+}
+
+.data-highlight {
+	color: var(--blue-color);
+	font-weight: 600;
+}
+
+/* Burn Pulse Animation */
+@keyframes burnPulse {
+	0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(228, 92, 26, 0.38); }
+	70% { transform: scale(1.02); box-shadow: 0 0 0 20rpx rgba(228, 92, 26, 0); }
+	100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(228, 92, 26, 0); }
+}
+
+.anim-burn-pulse {
+	animation: burnPulse 1.5s infinite;
+}
+
+.bg-white {
+	background: var(--card-bg) !important;
+}
+
+// 超出行数，自动显示行尾省略号，最多3行
+@for $i from 1 through 3 {
+	.line-#{$i} {
+		@if $i == '1' {
+			overflow: hidden;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+		} @else {
+			display: -webkit-box!important;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			word-break: break-all;
+			-webkit-line-clamp: $i;
+			-webkit-box-orient: vertical!important;
+		}
+	}
+}
+
+@for $i from 0 through 50 {
+	.fs-#{$i}{
+		font-size: $i  + rpx;
+		uni-view{
+			font-size: $i + rpx;
+		}
+
+		view{
+			font-size: $i  + rpx ;
+		}
+	}
+}
+
+// 定义内外边距，历遍1-100
+@for $i from 0 through 100 {
+	// 得出：m-30
+	.m-#{$i} {
+		margin: $i + rpx;
+	}
+
+	// 得出：p-30
+	.p-#{$i} {
+		padding: $i + rpx;
+	}
+
+	@each $short, $long in l left, t top, r right, b bottom {
+		// 缩写版，结果如： ml-30
+		// 定义外边距
+		.m#{$short}-#{$i} {
+			margin-#{$long}: $i + rpx;
+		}
+
+		// 定义内边距
+		.p#{$short}-#{$i} {
+			padding-#{$long}: $i + rpx;
+		}
+
+		.#{$long}-#{$i} {
+			#{$long}:  $i + rpx;
+		}
+	}
+}
