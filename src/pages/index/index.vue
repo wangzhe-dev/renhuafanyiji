@@ -5,7 +5,7 @@
 
     <!-- 顶部品牌区 -->
     <view class="brand">
-      <text class="brand-title">黑话“专家”</text>
+      <text class="brand-title">黑话"专家"</text>
     </view>
 
     <!-- 场景选择栏 -->
@@ -86,20 +86,22 @@
         <!-- 揭示分割线 -->
         <view class="reveal-divider">
           <view class="reveal-divider__line" />
-          <view class="reveal-divider__badge">
+          <view class="reveal-divider__badge" :class="{ 'reveal-divider__badge--pop': truthVisible }">
             <view class="reveal-divider__arrow" />
             <text class="reveal-divider__text">真相揭示</text>
           </view>
           <view class="reveal-divider__line" />
         </view>
 
-        <!-- 人话翻译 -->
+        <!-- 人话翻译（错落入场） -->
         <view class="result-section result-section--truth">
           <view class="truth-list">
             <view
               v-for="(item, idx) in resultSummaryPoints"
               :key="idx"
               class="truth-card"
+              :class="{ 'truth-card--show': truthVisible }"
+              :style="{ transitionDelay: `${0.08 + idx * 0.1}s` }"
             >
               <view class="truth-card__badge">{{ idx + 1 }}</view>
               <text class="truth-card__text">{{ item }}</text>
@@ -126,11 +128,28 @@
           </view>
         </view>
 
+        <!-- AI 生成配图 -->
+        <view v-if="generatedImage" class="result-section gen-image-section">
+          <view class="section-tag section-tag--muted">
+            <view class="section-tag__dot section-tag__dot--muted" />
+            <text class="section-tag__text section-tag__text--muted">AI 毒舌配图</text>
+          </view>
+          <image
+            :src="generatedImage"
+            class="gen-image"
+            mode="aspectFill"
+            show-menu-by-longpress
+          />
+        </view>
+
         <!-- 操作按钮 -->
         <view class="action-bar">
-          <view class="action-btn action-btn--glass" @tap="handleCopy">
-            <view class="action-icon action-icon--copy" />
-            <text class="action-btn__label">复制</text>
+          <view
+            class="action-btn action-btn--glass"
+            :class="{ 'action-btn--loading': isGeneratingImage }"
+            @tap="handleGenerateImage"
+          >
+            <text class="action-btn__label">{{ isGeneratingImage ? '生图中…' : '🎨 生图分享' }}</text>
           </view>
           <view class="action-btn action-btn--primary" @tap="handleReset">
             <text class="action-btn__label">再译一条</text>
@@ -138,14 +157,19 @@
         </view>
       </view>
     </view>
+
+    <!-- 隐藏画布：合成 AI 插画 + 真相文字 -->
+    <canvas canvas-id="imageCanvas" class="image-canvas" />
   </view>
 </template>
 
 <script setup lang="ts">
 import { scenes, type TranslationResult } from '@/config/scenes'
-import { requestTranslation } from '@/utils/cloudbase'
+import { requestImageGeneration, requestTranslation } from '@/utils/cloudbase'
 import { normalizeTranslationResult } from '@/utils/translate'
-import { computed, nextTick, ref } from 'vue'
+import { computed, getCurrentInstance, nextTick, ref } from 'vue'
+
+const { proxy } = getCurrentInstance()!
 
 // --- 状态 ---
 const currentScene = ref(0)
@@ -154,7 +178,10 @@ const isFocused = ref(false)
 const isLoading = ref(false)
 const result = ref<TranslationResult | null>(null)
 const showResult = ref(false)
+const truthVisible = ref(false)
 const requestToken = ref(0)
+const generatedImage = ref('')
+const isGeneratingImage = ref(false)
 
 const currentSceneConfig = computed(() => scenes[currentScene.value])
 const activeScenePillId = computed(() => `scene-pill-${currentSceneConfig.value.id}`)
@@ -206,33 +233,24 @@ function splitHumanTextIntoPoints(text: string) {
 function getReadableErrorMessage(error: any) {
   const message = `${error?.errMsg || error?.message || ''}`
 
-  if (!message) {
-    return '调用失败，请重试'
-  }
+  if (!message) return '调用失败，请重试'
 
-  if (/publishable key|accesskey|access key/i.test(message)) {
+  if (/publishable key|accesskey|access key/i.test(message))
     return 'CloudBase accessKey 无效，请检查 src/config/cloud.ts'
-  }
 
-  if (/signInWithOpenId|wx api undefined|login/i.test(message)) {
+  if (/signInWithOpenId|wx api undefined|login/i.test(message))
     return 'CloudBase 登录失败，请确认在微信开发者工具里运行并且环境配置正确'
-  }
 
-  if (/permission|unauthorized|forbidden/i.test(message)) {
+  if (/permission|unauthorized|forbidden/i.test(message))
     return 'CloudBase 权限不足，请检查 API Key、环境权限和 AI 开通状态'
-  }
 
-  if (/timeout|超时/i.test(message)) {
-    return '模型响应超时，请重试一次'
-  }
+  if (/timeout|超时/i.test(message)) return '模型响应超时，请重试一次'
 
-  if (/domain|url not in domain list|合法域名/i.test(message)) {
+  if (/domain|url not in domain list|合法域名/i.test(message))
     return '请求域名未配置，请把 CloudBase 域名加入小程序 request 合法域名'
-  }
 
-  if (/AI\+ 请求出错|model|hunyuan|resource_exhausted/i.test(message)) {
+  if (/AI\+ 请求出错|model|hunyuan|resource_exhausted/i.test(message))
     return 'AI 调用失败，请确认 AI 能力、模型权限和额度已开通'
-  }
 
   return `调用失败：${message.slice(0, 120)}`
 }
@@ -240,11 +258,13 @@ function getReadableErrorMessage(error: any) {
 function clearResultState() {
   result.value = null
   showResult.value = false
+  truthVisible.value = false
+  generatedImage.value = ''
+  isGeneratingImage.value = false
 }
 
 function handleSceneChange(idx: number) {
   if (currentScene.value === idx) return
-
   currentScene.value = idx
   inputText.value = ''
   requestToken.value += 1
@@ -268,10 +288,6 @@ async function handleTranslate() {
   clearResultState()
 
   try {
-    console.log('[translate] start', {
-      sceneId: sceneConfig.id,
-      inputLength: sourceText.trim().length
-    })
     const rawText = await requestTranslation(
       sceneConfig.systemPrompt,
       sourceText,
@@ -291,12 +307,18 @@ async function handleTranslate() {
       await nextTick()
       if (requestToken.value !== currentRequestToken) return
       showResult.value = true
+
+      // 延迟触发真相揭示动画
+      setTimeout(() => {
+        if (requestToken.value === currentRequestToken) {
+          truthVisible.value = true
+        }
+      }, 300)
     } else {
       uni.showToast({ title: 'AI 返回格式不对，请重试一次', icon: 'none', duration: 2500 })
     }
   } catch (error) {
     if (requestToken.value !== currentRequestToken) return
-    console.error('cloudbase ai failed:', error)
     uni.showToast({ title: getReadableErrorMessage(error), icon: 'none', duration: 3000 })
   } finally {
     if (requestToken.value === currentRequestToken) {
@@ -305,17 +327,94 @@ async function handleTranslate() {
   }
 }
 
-// --- 复制 ---
-function handleCopy() {
-  if (!result.value) return
-  const summary = resultSummaryPoints.value.length
-    ? resultSummaryPoints.value.map((item, idx) => `${idx + 1}. ${item}`).join('\n')
-    : result.value.humanText
-  const text = `【黑话“专家”】\n原文：${inputText.value}\n真实意思：\n${summary}`
-  uni.setClipboardData({
-    data: text,
-    success: () => uni.showToast({ title: '已复制', icon: 'success' })
+// --- 合成：AI 插画 + 真相文字 → 本地临时文件 ---
+function compositeImageWithText(localPath: string, truthText: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const ctx = uni.createCanvasContext('imageCanvas', proxy)
+    const W = 375
+    const H = 520
+
+    // AI 插画（上半部分）
+    ctx.drawImage(localPath, 0, 0, W, 280)
+
+    // 插画底部渐隐，过渡到暖白底
+    const fade = ctx.createLinearGradient(0, 220, 0, 280)
+    fade.addColorStop(0, 'rgba(255,247,241,0)')
+    fade.addColorStop(1, 'rgba(255,247,241,1)')
+    ctx.setFillStyle(fade)
+    ctx.fillRect(0, 220, W, 60)
+
+    // 下半文字区底色
+    ctx.fillStyle = '#fff7f1'
+    ctx.fillRect(0, 280, W, H - 280)
+
+    // 左侧红色竖条
+    const bar = ctx.createLinearGradient(0, 290, 0, H - 40)
+    bar.addColorStop(0, '#ff6b4a')
+    bar.addColorStop(1, '#ffb36b')
+    ctx.setFillStyle(bar)
+    ctx.fillRect(24, 290, 4, H - 330)
+
+    // "真相" 标签
+    ctx.fillStyle = '#ff6b4a'
+    ctx.font = 'bold 11px sans-serif'
+    ctx.fillText('真 相', 36, 308)
+
+    // 真相文字（主角）
+    ctx.fillStyle = '#2d1a14'
+    ctx.font = 'bold 17px sans-serif'
+    const lines = wrapCanvasText(ctx, truthText, 311, 7)
+    lines.forEach((line, i) => ctx.fillText(line, 36, 334 + i * 28))
+
+    // 水印
+    ctx.fillStyle = '#d4bfb6'
+    ctx.font = '10px sans-serif'
+    ctx.setTextAlign('center')
+    ctx.fillText('黑话"专家" · AI翻译', W / 2, H - 12)
+    ctx.setTextAlign('left')
+
+    ctx.draw(false, () => {
+      uni.canvasToTempFilePath(
+        {
+          canvasId: 'imageCanvas',
+          destWidth: 750,
+          destHeight: 1040,
+          success: (res: any) => resolve(res.tempFilePath),
+          fail: (err: any) => reject(new Error(err?.errMsg || '合成失败'))
+        },
+        proxy
+      )
+    })
   })
+}
+
+// --- 生图 ---
+async function handleGenerateImage() {
+  if (!result.value || isGeneratingImage.value) return
+  isGeneratingImage.value = true
+  uni.showToast({ title: 'AI 生图中…', icon: 'loading', duration: 60000, mask: true })
+  try {
+    const url = await requestImageGeneration(currentSceneConfig.value.id, result.value.humanText)
+
+    // 下载 AI 插画到本地
+    const dl = await new Promise<any>((resolve, reject) =>
+      uni.downloadFile({ url, success: resolve, fail: reject })
+    )
+    if (dl.statusCode !== 200) throw new Error('插画下载失败，请重试')
+
+    // canvas 合成：插画 + 真相文字
+    const compositePath = await compositeImageWithText(dl.tempFilePath, result.value.humanText)
+    generatedImage.value = compositePath
+
+    uni.hideToast()
+    // 直接预览，用户长按可保存
+    uni.previewImage({ urls: [compositePath] })
+  } catch (err: any) {
+    uni.hideToast()
+    uni.showToast({ title: err.message || '生成失败', icon: 'none', duration: 3000 })
+  } finally {
+    isGeneratingImage.value = false
+  }
 }
 
 // --- 再译一条 ---
@@ -323,6 +422,20 @@ function handleReset() {
   inputText.value = ''
   clearResultState()
   uni.pageScrollTo({ scrollTop: 0, duration: 300 })
+}
+
+
+function wrapCanvasText(ctx: any, text: string, maxWidth: number, maxLines: number): string[] {
+  const lines: string[] = []
+  let remaining = text.trim()
+  while (remaining && lines.length < maxLines) {
+    let i = 1
+    while (i <= remaining.length && ctx.measureText(remaining.slice(0, i)).width <= maxWidth) i++
+    const line = remaining.slice(0, i - 1) || remaining[0]
+    lines.push(line)
+    remaining = remaining.slice(line.length).trim()
+  }
+  return lines
 }
 </script>
 
@@ -606,7 +719,18 @@ $radius-pill: 40rpx;
   border-radius: 24rpx;
   background: linear-gradient(135deg, rgba($green, 0.1), rgba($green, 0.04));
   border: 1rpx solid rgba($green, 0.15);
+  opacity: 0;
+  transform: scale(0.7);
+  transition: none;
 }
+.reveal-divider__badge--pop {
+  animation: badgePop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both;
+}
+@keyframes badgePop {
+  from { opacity: 0; transform: scale(0.6); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
 .reveal-divider__arrow {
   width: 0;
   height: 0;
@@ -622,7 +746,7 @@ $radius-pill: 40rpx;
   letter-spacing: 1rpx;
 }
 
-// 真相卡片
+// 真相卡片（错落入场）
 .truth-list {
   display: grid;
   gap: 16rpx;
@@ -635,6 +759,13 @@ $radius-pill: 40rpx;
   background: linear-gradient(135deg, rgba($green, 0.06), rgba($green, 0.015));
   border: 1rpx solid rgba($green, 0.12);
   border-radius: 24rpx;
+  opacity: 0;
+  transform: translateY(20rpx);
+  transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.truth-card--show {
+  opacity: 1;
+  transform: translateY(0);
 }
 .truth-card__badge {
   width: 52rpx;
@@ -695,6 +826,17 @@ $radius-pill: 40rpx;
   text-align: left;
 }
 
+// AI 配图
+.gen-image-section {
+  padding-top: 0;
+}
+.gen-image {
+  width: 100%;
+  height: 400rpx;
+  border-radius: 20rpx;
+  display: block;
+}
+
 // 操作按钮
 .action-bar {
   display: flex;
@@ -731,30 +873,17 @@ $radius-pill: 40rpx;
     0 8rpx 20rpx rgba($red, 0.3),
     0 2rpx 6rpx rgba($red, 0.15);
 }
-
-// 纯 CSS 图标
-.action-icon {
-  width: 28rpx;
-  height: 28rpx;
-  position: relative;
-  flex-shrink: 0;
+.action-btn--loading {
+  opacity: 0.55;
+  pointer-events: none;
 }
-.action-icon--copy {
-  width: 20rpx;
-  height: 24rpx;
-  border: 3rpx solid $text-secondary;
-  border-radius: 4rpx;
-  margin-top: 6rpx;
-  &::before {
-    content: '';
-    position: absolute;
-    top: -8rpx;
-    left: 8rpx;
-    width: 20rpx;
-    height: 24rpx;
-    border: 3rpx solid $text-secondary;
-    border-radius: 4rpx;
-    background: rgba(255, 255, 255, 0.8);
-  }
+
+// 隐藏画布
+.image-canvas {
+  position: fixed;
+  top: -9999px;
+  left: -9999px;
+  width: 375px;
+  height: 520px;
 }
 </style>

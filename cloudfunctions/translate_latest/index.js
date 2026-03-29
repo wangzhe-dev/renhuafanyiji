@@ -1,5 +1,6 @@
 const cloud = require('wx-server-sdk')
 const tcb = require('@cloudbase/node-sdk')
+const { SCENES } = require('./scenes')
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 
@@ -11,34 +12,33 @@ const BUILD_TAG = 'translate_latest-2026-03-27-2035'
 const MAX_OUTPUT_TOKENS = 1024
 
 exports.main = async (event) => {
-  const { text, sceneId, systemPrompt } = event
-  const temperature = normalizeTemperature(event?.temperature)
+  const { text, sceneId } = event
   const requestId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   const wxContext = cloud.getWXContext()
   const envId = wxContext?.ENV || process.env.TCB_ENV || process.env.SCF_NAMESPACE || 'unknown-env'
+
+  // 服务端查表，不信任客户端传来的 systemPrompt 和 temperature
+  const scene = SCENES[sceneId]
 
   console.log('[translate] request received', {
     requestId,
     envId,
     sceneId,
-    textLength: typeof text === 'string' ? text.length : 0,
-    systemPromptLength: typeof systemPrompt === 'string' ? systemPrompt.length : 0,
-    temperature
+    textLength: typeof text === 'string' ? text.length : 0
   })
 
   // 校验
   if (!text || typeof text !== 'string' || text.trim().length === 0) {
     return { error: '请输入要翻译的文本' }
   }
-  if (!sceneId || typeof sceneId !== 'string') {
-    return { error: '缺少场景标识' }
-  }
-  if (!systemPrompt || typeof systemPrompt !== 'string') {
-    return { error: '缺少系统提示词' }
+  if (!scene) {
+    return { error: '无效的场景标识' }
   }
   if (text.length > 500) {
     return { error: '文本不能超过500字' }
   }
+
+  const { systemPrompt, temperature } = scene
 
   if (isLikelyLocalDebug(envId)) {
     return {
@@ -85,44 +85,23 @@ exports.main = async (event) => {
       if (content && content.trim().length > 0) {
         return {
           humanText: content.trim(),
-          score: 50,
-          verdict: '未知浓度',
           breakdown: [],
-          _debug: { requestId, envId, usage, temperature },
-          debugInfo: {
-            build: BUILD_TAG,
-            requestId,
-            envId,
-            usage,
-            temperature,
-            systemPromptLength: systemPrompt.length
-          }
+          debugInfo: { build: BUILD_TAG, requestId, envId, usage, temperature }
         }
       }
       return { error: 'AI 没有返回有效内容，请重试一次' }
     }
 
-    // score 范围校验
-    parsed.score = Math.min(100, Math.max(0, Number(parsed.score) || 50))
     console.log('[translate] parsed success', {
       requestId,
       envId,
       hasHumanText: Boolean(parsed.humanText),
-      score: parsed.score,
       usage
     })
 
     return {
       ...parsed,
-      _debug: { requestId, envId, usage, temperature },
-      debugInfo: {
-        build: BUILD_TAG,
-        requestId,
-        envId,
-        usage,
-        temperature,
-        systemPromptLength: systemPrompt.length
-      }
+      debugInfo: { build: BUILD_TAG, requestId, envId, usage, temperature }
     }
   } catch (err) {
     console.error('[translate] error', { requestId, err })

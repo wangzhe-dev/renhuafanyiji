@@ -1,3 +1,5 @@
+declare const wx: any
+
 export async function requestTranslation(
   systemPrompt: string,
   userText: string,
@@ -16,7 +18,7 @@ export async function requestTranslation(
     textLength: userText.trim().length
   })
 
-  const res = await withTimeout(
+  const res: any = await withTimeout(
     cloud.callFunction({
       name: functionName,
       data: {
@@ -27,7 +29,7 @@ export async function requestTranslation(
       }
     }),
     30000,
-    '云函数调用超时。若你在“本地云函数调试”，请切换为云端函数运行。'
+    '云函数调用超时。若你在”本地云函数调试”，请切换为云端函数运行。'
   )
 
   console.log('[cloud] callFunction done', {
@@ -55,6 +57,22 @@ export async function requestTranslation(
   }
 
   return result
+}
+
+export async function requestImageGeneration(sceneId: string, humanText: string): Promise<string> {
+  const cloud = (wx as any)?.cloud
+  if (!cloud || typeof cloud.callFunction !== 'function') {
+    throw new Error('wx.cloud 不可用')
+  }
+  const res: any = await withTimeout(
+    cloud.callFunction({ name: 'generate_image', data: { sceneId, humanText } }),
+    60000,
+    '图片生成超时，请重试'
+  )
+  const result = res?.result
+  if (!result?.success) throw new Error(result?.message || '生成失败')
+  if (!result?.imageUrl) throw new Error('未获取到图片地址')
+  return result.imageUrl
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
